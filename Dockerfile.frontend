@@ -1,0 +1,29 @@
+FROM node:18-alpine AS build
+
+WORKDIR /app
+
+# Копируем package.json и устанавливаем зависимости
+COPY frontend/package*.json ./
+RUN npm install
+
+# Копируем исходный код
+COPY frontend/ .
+
+# Устанавливаем права на node_modules
+RUN chmod -R 755 node_modules
+
+# Собираем приложение
+RUN npm run build
+
+# Production образ с nginx
+FROM nginx:alpine
+
+# Копируем собранное приложение
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Копируем конфигурацию nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

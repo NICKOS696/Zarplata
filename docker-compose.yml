@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: zarplata-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./backend/.env:/app/.env
+    environment:
+      - DATABASE_URL=sqlite:///./data/zarplata.db
+    restart: unless-stopped
+    networks:
+      - zarplata-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: zarplata-frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - zarplata-network
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+
+networks:
+  zarplata-network:
+    driver: bridge
