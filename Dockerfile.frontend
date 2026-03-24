@@ -6,11 +6,14 @@ WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm install
 
-# Копируем исходный код
-COPY frontend/ .
+# Копируем index.html явно
+COPY frontend/index.html ./
 
-# Проверяем наличие index.html
-RUN ls -la && test -f index.html || (echo "index.html not found!" && exit 1)
+# Копируем остальной исходный код
+COPY frontend/src ./src
+COPY frontend/vite.config.js ./
+COPY frontend/tailwind.config.js ./
+COPY frontend/postcss.config.js ./
 
 # Устанавливаем права на node_modules
 RUN chmod -R 755 node_modules
