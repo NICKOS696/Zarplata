@@ -168,6 +168,7 @@ def import_plans(db: Session, parsed_data: Dict, year: int, month: int, entities
             
             # Создаем новый план (старые уже удалены)
             new_plan = SalesPlan(
+                company_id=employee.company_id,
                 employee_id=employee.id,
                 brand_id=brand.id if brand else None,
                 kpi_type_id=kpi.id if kpi else None,
@@ -225,6 +226,7 @@ def import_sales(db: Session, parsed_data: Dict, sale_date: date, entities: Dict
                 existing_fact.fact_value = record['value']
             else:
                 new_fact = SalesFact(
+                    company_id=employee.company_id,
                     employee_id=employee.id,
                     brand_id=brand.id if brand else None,
                     kpi_type_id=kpi.id if kpi else None,
