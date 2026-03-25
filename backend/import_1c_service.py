@@ -271,14 +271,20 @@ def import_reserved_orders(db: Session, parsed_data: Dict, year: int, month: int
     ).delete(synchronize_session=False)
     db.commit()
     print(f"Удалено старых резервных заказов: {deleted}")
+    print(f"Всего записей для импорта: {len(parsed_data['data'])}")
+    print(f"Найдено сотрудников в entities: {len(entities.get('existing_employees', {}))}")
     
-    for record in parsed_data['data']:
+    for idx, record in enumerate(parsed_data['data']):
         try:
+            print(f"Запись {idx+1}: Пользователь='{record['employee_name_1c']}', Сумма={record['value']}")
             employee = entities['existing_employees'].get(record['employee_name_1c'])
             if not employee:
                 failed += 1
                 errors.append(f"Сотрудник не найден: {record['employee_name_1c']}")
+                print(f"  ❌ Сотрудник не найден")
                 continue
+            
+            print(f"  ✓ Сотрудник найден: ID={employee.id}, company_id={employee.company_id}")
             
             # Для резервных заказов нужен только сотрудник и сумма (без брендов/KPI)
             # Создаем новую запись резервного заказа (старые уже удалены)
