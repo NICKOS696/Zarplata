@@ -39,6 +39,25 @@ def parse_reserved_html(html_content: str) -> Dict:
         # Находим все строки таблицы (пропускаем заголовок)
         rows = soup.find_all('tr', class_='R1')
         
+        print(f"=== ПАРСИНГ РЕЗЕРВНЫХ ЗАКАЗОВ ===")
+        print(f"Найдено строк с классом R1: {len(rows)}")
+        
+        # Если не нашли строки с классом R1, пробуем найти все строки таблицы
+        if len(rows) == 0:
+            table = soup.find('table')
+            if table:
+                all_rows = table.find_all('tr')
+                print(f"Всего строк в таблице: {len(all_rows)}")
+                if len(all_rows) > 0:
+                    first_row = all_rows[0]
+                    print(f"Первая строка (заголовок): {[cell.get_text(strip=True) for cell in first_row.find_all(['td', 'th'])]}")
+                    if len(all_rows) > 1:
+                        second_row = all_rows[1]
+                        cells = second_row.find_all(['td', 'th'])
+                        print(f"Вторая строка (данные), количество столбцов: {len(cells)}")
+                        print(f"Содержимое второй строки: {[cell.get_text(strip=True)[:50] for cell in cells]}")
+                rows = all_rows[1:]  # Пропускаем заголовок
+        
         for row in rows:
             cells = row.find_all('td')
             if len(cells) < 2:
