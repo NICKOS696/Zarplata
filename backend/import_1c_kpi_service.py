@@ -86,19 +86,31 @@ def import_kpi_data(db: Session, parsed_data: Dict, year: int, month: int, entit
     period_start = date(year, month, 1)
     period_end = date(year, month, last_day)
     
-    # Удаляем старые факты KPI за этот месяц
-    deleted = db.query(models.SalesFact).filter(
-        models.SalesFact.sale_date >= period_start,
-        models.SalesFact.sale_date <= period_end,
-        models.SalesFact.kpi_type_id.isnot(None)
-    ).delete()
-    
     imported = 0
     failed = 0
     errors = []
     
     employee_map = entities['employees']
     kpi_map = entities['kpi_types']
+    
+    # Определяем уникальные KPI типы в загружаемом файле
+    kpi_types_in_file = set()
+    for record in parsed_data['records']:
+        kpi_type = kpi_map.get(record['kpi_name'])
+        if kpi_type:
+            kpi_types_in_file.add(kpi_type.id)
+    
+    # Удаляем старые данные ТОЛЬКО по тем KPI, которые есть в файле
+    if kpi_types_in_file:
+        deleted = db.query(models.SalesFact).filter(
+            models.SalesFact.sale_date >= period_start,
+            models.SalesFact.sale_date <= period_end,
+            models.SalesFact.kpi_type_id.in_(kpi_types_in_file)
+        ).delete(synchronize_session=False)
+        db.commit()
+        print(f"Удалено старых записей KPI: {deleted} (типы: {kpi_types_in_file})")
+    else:
+        print("Нет валидных KPI в файле для удаления старых данных")
     
     for record in parsed_data['records']:
         try:
