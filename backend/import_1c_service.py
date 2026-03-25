@@ -7,6 +7,7 @@ from typing import List, Dict
 import crud
 from models import Employee, Brand, KPIType, SalesPlan, SalesFact, ReservedOrders
 from import_1c_parser import parse_1c_html, group_by_employee
+from import_kpi_facts_temp import import_kpi_facts
 
 
 def check_missing_entities(db: Session, parsed_data: Dict) -> Dict:
