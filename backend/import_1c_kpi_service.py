@@ -118,6 +118,7 @@ def import_kpi_data(db: Session, parsed_data: Dict, year: int, month: int, entit
             
             # Создаем новую запись факта KPI (используем последний день месяца)
             new_fact = models.SalesFact(
+                company_id=employee.company_id,
                 employee_id=employee.id,
                 kpi_type_id=kpi_type.id,
                 brand_id=None,  # Для KPI бренд не указывается

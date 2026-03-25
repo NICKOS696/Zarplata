@@ -92,6 +92,7 @@ def import_reserved_orders(db: Session, parsed_data: Dict, year: int, month: int
             # Создаем новую запись резервного заказа (старые уже удалены)
             # Используем последний день месяца как дату заказа
             new_reserved = models.ReservedOrders(
+                company_id=employee.company_id,
                 employee_id=employee.id,
                 order_date=period_end,  # Последний день месяца
                 reserved_value=record['value']

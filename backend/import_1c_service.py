@@ -284,6 +284,7 @@ def import_reserved_orders(db: Session, parsed_data: Dict, order_date: date, ent
                 existing_reserved.reserved_value = record['value']
             else:
                 new_reserved = ReservedOrders(
+                    company_id=employee.company_id,
                     employee_id=employee.id,
                     brand_id=brand.id if brand else None,
                     kpi_type_id=kpi.id if kpi else None,

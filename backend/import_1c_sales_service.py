@@ -120,6 +120,7 @@ def import_sales(db: Session, parsed_data: Dict, year: int, month: int, entities
             # Создаем новую запись продажи (старые уже удалены)
             # Используем последний день месяца как дату продажи
             new_sale = models.SalesFact(
+                company_id=employee.company_id,
                 employee_id=employee.id,
                 brand_id=brand.id,
                 sale_date=period_end,  # Последний день месяца
