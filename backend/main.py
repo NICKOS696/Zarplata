@@ -2334,22 +2334,25 @@ async def parse_1c_file(
                 "errors": parsed_data['errors']
             }
         elif import_type == 'kpi':
-            from import_1c_kpi_parser import parse_kpi_html
-            parsed_data = parse_kpi_html(html_content)
+            # Используем универсальный парсер для 7-столбцового формата
+            from import_1c_parser import parse_1c_html
+            parsed_data = parse_1c_html(html_content, 'kpi')
             
-            # Проверяем наличие сущностей в БД для KPI
-            from import_1c_kpi_service import check_kpi_entities
-            check_result = check_kpi_entities(db, parsed_data)
+            if not parsed_data['success']:
+                raise HTTPException(status_code=400, detail=parsed_data['errors'])
+            
+            # Проверяем наличие сущностей в БД
+            from import_1c_service import check_missing_entities
+            check_result = check_missing_entities(db, parsed_data)
             
             return {
                 "success": True,
-                "records_count": parsed_data['total_records'],
+                "records_count": len(parsed_data['data']),
                 "missing_employees": check_result['missing_employees'],
-                "missing_brands": [],  # Для KPI бренды не используются
+                "missing_brands": [],  # Для KPI бренды не используются (фильтруем)
                 "missing_kpis": check_result['missing_kpis'],
-                "kpi_types_found": parsed_data['kpi_types'],
-                "preview_data": parsed_data['records'][:10],
-                "total_sum": parsed_data['total_sum']
+                "preview_data": parsed_data['data'][:10],
+                "errors": parsed_data['errors']
             }
         else:
             # Планы и другие типы
