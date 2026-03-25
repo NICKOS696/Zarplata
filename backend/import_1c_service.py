@@ -251,11 +251,26 @@ def import_sales(db: Session, parsed_data: Dict, sale_date: date, entities: Dict
     }
 
 
-def import_reserved_orders(db: Session, parsed_data: Dict, order_date: date, entities: Dict) -> Dict:
-    """Импорт резервных заказов"""
+def import_reserved_orders(db: Session, parsed_data: Dict, year: int, month: int, entities: Dict) -> Dict:
+    """Импорт резервных заказов из 7-столбцового формата"""
+    from calendar import monthrange
+    
     imported = 0
     failed = 0
     errors = []
+    
+    # Определяем период (используем последний день месяца)
+    period_start = date(year, month, 1)
+    last_day = monthrange(year, month)[1]
+    order_date = date(year, month, last_day)
+    
+    # Удаляем старые резервные заказы за этот месяц
+    deleted = db.query(ReservedOrders).filter(
+        ReservedOrders.order_date >= period_start,
+        ReservedOrders.order_date <= order_date
+    ).delete(synchronize_session=False)
+    db.commit()
+    print(f"Удалено старых резервных заказов: {deleted}")
     
     for record in parsed_data['data']:
         try:
