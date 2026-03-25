@@ -48,32 +48,23 @@ def parse_reserved_html(html_content: str) -> Dict:
             if table:
                 all_rows = table.find_all('tr')
                 print(f"Всего строк в таблице: {len(all_rows)}")
-                if len(all_rows) > 0:
-                    first_row = all_rows[0]
-                    print(f"Первая строка (заголовок): {[cell.get_text(strip=True) for cell in first_row.find_all(['td', 'th'])]}")
-                    if len(all_rows) > 1:
-                        second_row = all_rows[1]
-                        cells = second_row.find_all(['td', 'th'])
-                        print(f"Вторая строка (данные), количество столбцов: {len(cells)}")
-                        print(f"Содержимое второй строки: {[cell.get_text(strip=True)[:50] for cell in cells]}")
                 rows = all_rows[1:]  # Пропускаем заголовок
         
         for idx, row in enumerate(rows):
             cells = row.find_all('td')
-            print(f"Строка {idx+1}: найдено столбцов: {len(cells)}")
-            if len(cells) > 0:
-                print(f"  Содержимое столбцов: {[cell.get_text(strip=True)[:50] for cell in cells[:5]]}")
             
-            if len(cells) < 2:
-                print(f"  Пропускаем строку - мало столбцов")
+            # Нужно минимум 7 столбцов (столбец 1 - пользователь, столбец 7 - сумма)
+            if len(cells) < 7:
                 continue
             
             # Извлекаем данные
-            employee_name_1c = cells[0].get_text(strip=True)  # Менеджер (с территорией)
-            value_text = cells[1].get_text(strip=True)         # Сумма документа
+            # Столбец 1: Пользователь (с территорией)
+            employee_name_1c = cells[0].get_text(strip=True)
+            # Столбец 7: Сумма
+            value_text = cells[6].get_text(strip=True)  # Индекс 6, так как нумерация с 0
             
-            print(f"  Менеджер: '{employee_name_1c}'")
-            print(f"  Сумма: '{value_text}'")
+            if idx == 0:  # Логируем первую строку для проверки
+                print(f"Первая строка - Пользователь: '{employee_name_1c}', Сумма (столбец 7): '{value_text}'")
             
             # Парсим сумму (убираем пробелы и неразрывные пробелы)
             value = 0.0

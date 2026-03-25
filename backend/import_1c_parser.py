@@ -97,8 +97,19 @@ def parse_1c_html(html_content: str, data_type: str = 'plans') -> Dict:
         result['missing_employees'] = list(set(r['employee_name_1c'] for r in result['data']))
         # Все товары добавляем в оба списка - система сама определит при загрузке
         all_items = list(set(r['item_name'] for r in result['data']))
-        result['missing_brands'] = all_items
-        result['missing_kpis'] = all_items
+        
+        print(f"=== ПАРСИНГ {import_type.upper()} ===")
+        print(f"Найдено уникальных item_name: {len(all_items)}")
+        print(f"Примеры item_name: {all_items[:5]}")
+        
+        # Для резервных заказов - только бренды (нет KPI)
+        if import_type == 'reserved':
+            result['missing_brands'] = all_items
+            result['missing_kpis'] = []
+        else:
+            # Для планов и KPI - добавляем в оба списка
+            result['missing_brands'] = all_items
+            result['missing_kpis'] = all_items
         
     except Exception as e:
         result['success'] = False

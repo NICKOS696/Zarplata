@@ -2314,23 +2314,23 @@ async def parse_1c_file(
                 "errors": parsed_data['errors']
             }
         elif import_type == 'reserved':
-            # Используем универсальный парсер для 7-столбцового формата
-            from import_1c_parser import parse_1c_html
-            parsed_data = parse_1c_html(html_content, 'reserved')
+            # Используем простой парсер для резервных заказов (столбцы 1 и 7)
+            from import_1c_reserved_parser import parse_reserved_html
+            parsed_data = parse_reserved_html(html_content)
             
             if not parsed_data['success']:
                 raise HTTPException(status_code=400, detail=parsed_data['errors'])
             
-            # Проверяем наличие сущностей в БД
-            from import_1c_service import check_missing_entities
-            check_result = check_missing_entities(db, parsed_data)
+            # Проверяем наличие сотрудников в БД
+            from import_1c_reserved_service import check_reserved_entities
+            check_result = check_reserved_entities(db, parsed_data)
             
             return {
                 "success": True,
                 "records_count": len(parsed_data['data']),
                 "missing_employees": check_result['missing_employees'],
-                "missing_brands": check_result['missing_brands'],
-                "missing_kpis": check_result['missing_kpis'],
+                "missing_brands": [],  # Для резервных заказов бренды не используются
+                "missing_kpis": [],
                 "preview_data": parsed_data['data'][:10],
                 "errors": parsed_data['errors']
             }
@@ -2422,25 +2422,25 @@ async def execute_import(
             result = import_sales(db, parsed_data, year, month, entities)
             
         elif import_type == 'reserved':
-            # Используем универсальный парсер для 7-столбцового формата
-            from import_1c_parser import parse_1c_html
-            parsed_data = parse_1c_html(html_content, 'reserved')
+            # Используем простой парсер для резервных заказов (столбцы 1 и 7)
+            from import_1c_reserved_parser import parse_reserved_html
+            parsed_data = parse_reserved_html(html_content)
             
             if not parsed_data['success']:
                 raise HTTPException(status_code=400, detail=parsed_data['errors'])
             
-            # Проверяем сущности
-            from import_1c_service import check_missing_entities
-            entities = check_missing_entities(db, parsed_data)
+            # Проверяем сотрудников
+            from import_1c_reserved_service import check_reserved_entities
+            entities = check_reserved_entities(db, parsed_data)
             
-            # Проверяем, что нет отсутствующих сущностей
-            if entities['missing_employees'] or entities['missing_brands'] or entities['missing_kpis']:
+            # Проверяем, что нет отсутствующих сотрудников
+            if entities['missing_employees']:
                 raise HTTPException(
                     status_code=400,
-                    detail="Есть отсутствующие сущности. Сначала создайте их."
+                    detail="Есть отсутствующие сотрудники. Сначала создайте их."
                 )
             
-            # Выполняем импорт резервных заказов (используем функцию из import_1c_service)
+            # Выполняем импорт резервных заказов
             from import_1c_service import import_reserved_orders
             result = import_reserved_orders(db, parsed_data, year, month, entities)
             

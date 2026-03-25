@@ -280,34 +280,15 @@ def import_reserved_orders(db: Session, parsed_data: Dict, year: int, month: int
                 errors.append(f"Сотрудник не найден: {record['employee_name_1c']}")
                 continue
             
-            brand = entities['existing_brands'].get(record['item_name'])
-            kpi = entities['existing_kpis'].get(record['item_name'])
-            
-            if not brand and not kpi:
-                failed += 1
-                errors.append(f"Бренд/KPI не найден: {record['item_name']}")
-                continue
-            
-            # Создаем или обновляем резерв
-            existing_reserved = db.query(ReservedOrders).filter(
-                ReservedOrders.employee_id == employee.id,
-                ReservedOrders.brand_id == (brand.id if brand else None),
-                ReservedOrders.kpi_type_id == (kpi.id if kpi else None),
-                ReservedOrders.order_date == order_date
-            ).first()
-            
-            if existing_reserved:
-                existing_reserved.reserved_value = record['value']
-            else:
-                new_reserved = ReservedOrders(
-                    company_id=employee.company_id,
-                    employee_id=employee.id,
-                    brand_id=brand.id if brand else None,
-                    kpi_type_id=kpi.id if kpi else None,
-                    order_date=order_date,
-                    reserved_value=record['value']
-                )
-                db.add(new_reserved)
+            # Для резервных заказов нужен только сотрудник и сумма (без брендов/KPI)
+            # Создаем новую запись резервного заказа (старые уже удалены)
+            new_reserved = ReservedOrders(
+                company_id=employee.company_id,
+                employee_id=employee.id,
+                order_date=order_date,
+                reserved_value=record['value']
+            )
+            db.add(new_reserved)
             
             imported += 1
             
