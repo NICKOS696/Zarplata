@@ -98,12 +98,12 @@ def parse_1c_html(html_content: str, data_type: str = 'plans') -> Dict:
         # Все товары добавляем в оба списка - система сама определит при загрузке
         all_items = list(set(r['item_name'] for r in result['data']))
         
-        print(f"=== ПАРСИНГ {import_type.upper()} ===")
+        print(f"=== ПАРСИНГ {data_type.upper()} ===")
         print(f"Найдено уникальных item_name: {len(all_items)}")
         print(f"Примеры item_name: {all_items[:5]}")
         
         # Для резервных заказов - только бренды (нет KPI)
-        if import_type == 'reserved':
+        if data_type == 'reserved':
             result['missing_brands'] = all_items
             result['missing_kpis'] = []
         else:
