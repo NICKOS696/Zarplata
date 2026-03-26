@@ -2402,6 +2402,9 @@ async def parse_1c_file(
             }
         
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"ERROR in parse_1c_file: {error_details}")
         raise HTTPException(status_code=500, detail=f"Ошибка парсинга файла: {str(e)}")
 
 
