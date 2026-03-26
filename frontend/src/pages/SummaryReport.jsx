@@ -1378,9 +1378,10 @@ function SummaryReport() {
                         )}
                         <td className={`px-2 py-2 border font-medium ${data.kpiAccruals[i] === null ? 'text-center text-gray-300' : 'text-right'}`}>
                           {data.kpiAccruals[i] === null ? '–' : data.kpiAccruals[i].toLocaleString('ru-RU')}
-                      </td>
-                    </React.Fragment>
-                  ))}
+                        </td>
+                      </React.Fragment>
+                    );
+                  })}
                   
                   {/* Комбинации */}
                   {data.combinationData.map((combo, idx) => (
