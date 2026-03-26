@@ -120,6 +120,7 @@ class KPIType(Base):
     name_1c = Column(String, nullable=True)  # Название в 1С для импорта
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
+    no_plan = Column(Boolean, default=False)  # KPI без плана (только факт и начисление)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

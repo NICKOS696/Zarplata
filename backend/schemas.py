@@ -145,6 +145,7 @@ class KPITypeBase(BaseModel):
     name_1c: Optional[str] = None
     description: Optional[str] = None
     is_active: bool = True
+    no_plan: bool = False  # KPI без плана (только факт и начисление)
 
 
 class KPITypeCreate(KPITypeBase):
