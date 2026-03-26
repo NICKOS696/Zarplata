@@ -40,7 +40,7 @@ function Settings() {
   const [editingKpi, setEditingKpi] = useState(null);
   const [editingTerritory, setEditingTerritory] = useState(null);
   const [brandForm, setBrandForm] = useState({ name: '', name_1c: '', company_id: '' });
-  const [kpiForm, setKpiForm] = useState({ name: '', name_1c: '', description: '', company_id: '' });
+  const [kpiForm, setKpiForm] = useState({ name: '', name_1c: '', description: '', company_id: '', no_plan: false });
   const [territoryForm, setTerritoryForm] = useState({ 
     name: '', 
     sort_order: 0, 
@@ -144,7 +144,7 @@ function Settings() {
         await kpiTypesAPI.create(data);
       }
       setShowKpiModal(false);
-      setKpiForm({ name: '', name_1c: '', description: '', company_id: currentCompanyId || '' });
+      setKpiForm({ name: '', name_1c: '', description: '', company_id: currentCompanyId || '', no_plan: false });
       setEditingKpi(null);
       loadData();
     } catch (error) {
@@ -155,7 +155,7 @@ function Settings() {
 
   const handleEditKpi = (kpi) => {
     setEditingKpi(kpi);
-    setKpiForm({ name: kpi.name, name_1c: kpi.name_1c || '', description: kpi.description || '', company_id: kpi.company_id || '' });
+    setKpiForm({ name: kpi.name, name_1c: kpi.name_1c || '', description: kpi.description || '', company_id: kpi.company_id || '', no_plan: kpi.no_plan || false });
     setShowKpiModal(true);
   };
 
@@ -845,6 +845,17 @@ function Settings() {
                   </select>
                 </div>
               )}
+              <div>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={kpiForm.no_plan}
+                    onChange={(e) => setKpiForm({ ...kpiForm, no_plan: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">Начисление без плана (только Факт и Начисление)</span>
+                </label>
+              </div>
               <div className="flex space-x-3 pt-4">
                 <button type="submit" className="btn btn-primary flex-1">Сохранить</button>
                 <button
