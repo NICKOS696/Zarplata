@@ -289,7 +289,6 @@ def import_reserved_orders(db: Session, parsed_data: Dict, year: int, month: int
             # Для резервных заказов нужен только сотрудник и сумма (без брендов/KPI)
             # Создаем новую запись резервного заказа (старые уже удалены)
             new_reserved = ReservedOrders(
-                company_id=employee.company_id,
                 employee_id=employee.id,
                 order_date=order_date,
                 reserved_value=record['value']
