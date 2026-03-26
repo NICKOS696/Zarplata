@@ -2617,6 +2617,9 @@ def create_employee_quick(
         
     except Exception as e:
         db.rollback()
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"ERROR in create_employee_quick: {error_details}")
         raise HTTPException(status_code=500, detail=f"Ошибка создания сотрудника: {str(e)}")
 
 
