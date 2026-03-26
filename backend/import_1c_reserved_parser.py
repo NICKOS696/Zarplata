@@ -53,18 +53,22 @@ def parse_reserved_html(html_content: str) -> Dict:
         for idx, row in enumerate(rows):
             cells = row.find_all('td')
             
-            # Нужно минимум 7 столбцов (столбец 1 - пользователь, столбец 7 - сумма)
-            if len(cells) < 7:
+            # Логируем первую строку полностью для определения структуры
+            if idx == 0:
+                print(f"=== СТРУКТУРА ФАЙЛА РЕЗЕРВНЫХ ЗАКАЗОВ ===")
+                print(f"Количество столбцов: {len(cells)}")
+                for i, cell in enumerate(cells):
+                    print(f"Столбец {i+1}: '{cell.get_text(strip=True)[:100]}'")
+            
+            # Нужно минимум 4 столбца (Пользователь, № заказа, Количество заявок, Сумма)
+            if len(cells) < 4:
                 continue
             
             # Извлекаем данные
             # Столбец 1: Пользователь (с территорией)
             employee_name_1c = cells[0].get_text(strip=True)
-            # Столбец 7: Сумма
-            value_text = cells[6].get_text(strip=True)  # Индекс 6, так как нумерация с 0
-            
-            if idx == 0:  # Логируем первую строку для проверки
-                print(f"Первая строка - Пользователь: '{employee_name_1c}', Сумма (столбец 7): '{value_text}'")
+            # Столбец 4: Сумма (индекс 3)
+            value_text = cells[3].get_text(strip=True)
             
             # Парсим сумму (убираем пробелы и неразрывные пробелы)
             value = 0.0
@@ -74,23 +78,39 @@ def parse_reserved_html(html_content: str) -> Dict:
                     value_clean = value_text.replace(' ', '').replace('\xa0', '').replace(',', '.')
                     value = float(value_clean)
                 except ValueError:
-                    result['errors'].append(f"Не удалось распарсить сумму: {value_text}")
+                    # Если не удалось распарсить сумму, пропускаем строку
                     continue
             
-            # Пропускаем строки с нулевой суммой
-            if value == 0:
+            # Пропускаем строки с нулевой или отрицательной суммой (возвраты)
+            if value <= 0:
                 continue
             
-            # Добавляем запись
+            # Добавляем запись для подсчета
             record = {
                 'employee_name_1c': employee_name_1c,  # Полное имя с территорией
-                'value': value
+                'value': value  # Сумма для проверки > 0
             }
             
             result['data'].append(record)
         
+        # Группируем по сотрудникам и считаем количество заявок (строк с суммой > 0)
+        from collections import defaultdict
+        employee_counts = defaultdict(int)
+        
+        for record in result['data']:
+            employee_counts[record['employee_name_1c']] += 1
+        
+        # Формируем итоговый результат: для каждого сотрудника - количество заявок
+        result['data'] = [
+            {
+                'employee_name_1c': emp_name,
+                'value': count  # Количество заявок с суммой > 0
+            }
+            for emp_name, count in employee_counts.items()
+        ]
+        
         # Собираем уникальные значения для проверки
-        result['missing_employees'] = list(set(r['employee_name_1c'] for r in result['data']))
+        result['missing_employees'] = list(employee_counts.keys())
         
     except Exception as e:
         result['success'] = False
