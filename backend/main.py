@@ -2550,15 +2550,20 @@ def create_employee_quick(
         print(f"Данные: {employee_data}")
         print(f"Супервайзер из данных: {employee_data.get('supervisor')}")
         print(f"Менеджер из данных: {employee_data.get('manager')}")
+        # Получаем company_id из данных или используем 1 по умолчанию
+        company_id = employee_data.get('company_id', 1)
+        
         # Находим или создаем территорию
         territory = None
         if employee_data.get('territory'):
             territory = db.query(models.Territory).filter(
-                models.Territory.name == employee_data['territory']
+                models.Territory.name == employee_data['territory'],
+                models.Territory.company_id == company_id
             ).first()
             
             if not territory:
                 territory = models.Territory(
+                    company_id=company_id,
                     name=employee_data['territory'],
                     is_active=True
                 )
@@ -2593,6 +2598,7 @@ def create_employee_quick(
         
         # Создаем сотрудника
         new_employee = models.Employee(
+            company_id=company_id,
             full_name=employee_data['full_name'],
             name_1c=employee_data['name_1c'],
             position=employee_data.get('position', 'agent'),
