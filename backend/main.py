@@ -1218,13 +1218,15 @@ async def import_order_count_from_html(
         
         for row in rows:
             cells = row.find_all(['td', 'th'])
-            if len(cells) < 2:
+            if len(cells) < 3:  # Нужно минимум 3 столбца (Пользователь, № заказа, Количество заявок)
                 continue
             
             try:
                 # Парсим данные из строки
                 employee_name = cells[0].get_text(strip=True)
-                order_count = int(cells[1].get_text(strip=True).replace(' ', '').replace(',', '') or 0)
+                # Столбец 3: Количество заявок (индекс 2)
+                order_count_text = cells[2].get_text(strip=True).replace(' ', '').replace(',', '')
+                order_count = int(order_count_text) if order_count_text else 0
                 
                 # Ищем сотрудника
                 employee = employee_map_1c.get(employee_name) or employee_map.get(employee_name)

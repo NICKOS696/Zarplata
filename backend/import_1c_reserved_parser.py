@@ -60,15 +60,15 @@ def parse_reserved_html(html_content: str) -> Dict:
                 for i, cell in enumerate(cells):
                     print(f"Столбец {i+1}: '{cell.get_text(strip=True)[:100]}'")
             
-            # Нужно минимум 4 столбца (Пользователь, № заказа, Количество заявок, Сумма)
-            if len(cells) < 4:
+            # Нужно минимум 2 столбца (Пользователь, Сумма)
+            if len(cells) < 2:
                 continue
             
             # Извлекаем данные
             # Столбец 1: Пользователь (с территорией)
             employee_name_1c = cells[0].get_text(strip=True)
-            # Столбец 4: Сумма (индекс 3)
-            value_text = cells[3].get_text(strip=True)
+            # Столбец 2: Сумма (индекс 1)
+            value_text = cells[1].get_text(strip=True)
             
             # Парсим сумму (убираем пробелы и неразрывные пробелы)
             value = 0.0
