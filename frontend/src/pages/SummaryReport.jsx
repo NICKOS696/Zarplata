@@ -1232,7 +1232,7 @@ function SummaryReport() {
                 {/* KPI */}
                 {activeKpiTypes.map(kpi => (
                   <React.Fragment key={`kpi-${kpi.id}`}>
-                    <th className="px-2 py-2 text-center border bg-green-50" colSpan="4">
+                    <th className="px-2 py-2 text-center border bg-green-50" colSpan={kpi.no_plan ? "2" : "4"}>
                       {kpi.name}
                     </th>
                   </React.Fragment>
@@ -1280,9 +1280,9 @@ function SummaryReport() {
                 {/* Подзаголовки для KPI */}
                 {activeKpiTypes.map(kpi => (
                   <React.Fragment key={`kpi-sub-${kpi.id}`}>
-                    <th className="px-2 py-1 border bg-green-50">План</th>
+                    {!kpi.no_plan && <th className="px-2 py-1 border bg-green-50">План</th>}
                     <th className="px-2 py-1 border bg-green-50">Факт</th>
-                    <th className="px-2 py-1 border bg-green-50">%</th>
+                    {!kpi.no_plan && <th className="px-2 py-1 border bg-green-50">%</th>}
                     <th className="px-2 py-1 border bg-green-50">Начисл.</th>
                   </React.Fragment>
                 ))}
@@ -1355,23 +1355,29 @@ function SummaryReport() {
                   ))}
                   
                   {/* Данные по KPI */}
-                  {data.kpiData.map((k, i) => (
-                    <React.Fragment key={`kpi-data-${i}`}>
-                      <td className="px-2 py-2 border text-right">
-                        {k.plan.toLocaleString('ru-RU')}
-                      </td>
-                      <td className="px-2 py-2 border text-right">
-                        {k.fact.toLocaleString('ru-RU')}
-                      </td>
-                      <td className={`px-2 py-2 border text-right font-medium ${
-                        k.percent >= 100 ? 'text-green-600' : 
-                        k.percent >= 80 ? 'text-yellow-600' : 
-                        'text-red-600'
-                      }`}>
-                        {k.percent.toFixed(0)}%
-                      </td>
-                      <td className={`px-2 py-2 border font-medium ${data.kpiAccruals[i] === null ? 'text-center text-gray-300' : 'text-right'}`}>
-                        {data.kpiAccruals[i] === null ? '–' : data.kpiAccruals[i].toLocaleString('ru-RU')}
+                  {data.kpiData.map((k, i) => {
+                    const kpiType = activeKpiTypes[i];
+                    return (
+                      <React.Fragment key={`kpi-data-${i}`}>
+                        {!kpiType?.no_plan && (
+                          <td className="px-2 py-2 border text-right">
+                            {k.plan.toLocaleString('ru-RU')}
+                          </td>
+                        )}
+                        <td className="px-2 py-2 border text-right">
+                          {k.fact.toLocaleString('ru-RU')}
+                        </td>
+                        {!kpiType?.no_plan && (
+                          <td className={`px-2 py-2 border text-right font-medium ${
+                            k.percent >= 100 ? 'text-green-600' : 
+                            k.percent >= 80 ? 'text-yellow-600' : 
+                            'text-red-600'
+                          }`}>
+                            {k.percent.toFixed(0)}%
+                          </td>
+                        )}
+                        <td className={`px-2 py-2 border font-medium ${data.kpiAccruals[i] === null ? 'text-center text-gray-300' : 'text-right'}`}>
+                          {data.kpiAccruals[i] === null ? '–' : data.kpiAccruals[i].toLocaleString('ru-RU')}
                       </td>
                     </React.Fragment>
                   ))}

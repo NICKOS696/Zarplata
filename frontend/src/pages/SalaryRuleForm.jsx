@@ -1098,6 +1098,7 @@ function SalaryRuleForm() {
                           >
                             <option value="fixed_amount_table">Таблица фиксированных сумм</option>
                             <option value="percent_of_sales">Процент от продаж</option>
+                            <option value="percent_of_sales_no_plan">Процент от продаж без плана</option>
                             <option value="bonus_plus_percent">Таблица фиксированных сумм + % от перевыполнения</option>
                           </select>
                         </div>
@@ -1163,6 +1164,7 @@ function SalaryRuleForm() {
                     >
                       <option value="fixed_amount_table">Таблица фиксированных сумм</option>
                       <option value="percent_of_sales">Процент от продаж</option>
+                      <option value="percent_of_sales_no_plan">Процент от продаж без плана</option>
                       <option value="bonus_plus_percent">Таблица фиксированных сумм + % от перевыполнения</option>
                     </select>
                   </div>
@@ -1230,6 +1232,7 @@ function SalaryRuleForm() {
                   >
                     <option value="fixed_amount_table">Таблица фиксированных сумм</option>
                     <option value="percent_of_sales">Процент от продаж</option>
+                    <option value="percent_of_sales_no_plan">Процент от продаж без плана</option>
                     <option value="bonus_plus_percent">Таблица фиксированных сумм + % от перевыполнения</option>
                   </select>
                 </div>
@@ -1439,6 +1442,7 @@ function SalaryRuleForm() {
                 >
                   <option value="fixed_amount_table">Таблица фиксированных сумм</option>
                   <option value="percent_of_sales">Процент от продаж</option>
+                  <option value="percent_of_sales_no_plan">Процент от продаж без плана</option>
                   <option value="bonus_plus_percent">Таблица фиксированных сумм + % от перевыполнения</option>
                 </select>
               </div>
