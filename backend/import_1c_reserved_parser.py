@@ -60,15 +60,15 @@ def parse_reserved_html(html_content: str) -> Dict:
                 for i, cell in enumerate(cells):
                     print(f"Столбец {i+1}: '{cell.get_text(strip=True)[:100]}'")
             
-            # Нужно минимум 2 столбца (Пользователь, Сумма)
-            if len(cells) < 2:
+            # Нужно минимум 7 столбцов (Пользователь, Территория, ID Telegram, Супервайзер, Менеджер, Заказ, Сумма)
+            if len(cells) < 7:
                 continue
             
             # Извлекаем данные
             # Столбец 1: Пользователь (с территорией)
             employee_name_1c = cells[0].get_text(strip=True)
-            # Столбец 2: Сумма (индекс 1)
-            value_text = cells[1].get_text(strip=True)
+            # Столбец 7: Сумма (индекс 6)
+            value_text = cells[6].get_text(strip=True)
             
             # Парсим сумму (убираем пробелы и неразрывные пробелы)
             value = 0.0
@@ -93,24 +93,24 @@ def parse_reserved_html(html_content: str) -> Dict:
             
             result['data'].append(record)
         
-        # Группируем по сотрудникам и считаем количество заявок (строк с суммой > 0)
+        # Группируем по сотрудникам и суммируем значения
         from collections import defaultdict
-        employee_counts = defaultdict(int)
+        employee_sums = defaultdict(float)
         
         for record in result['data']:
-            employee_counts[record['employee_name_1c']] += 1
+            employee_sums[record['employee_name_1c']] += record['value']
         
-        # Формируем итоговый результат: для каждого сотрудника - количество заявок
+        # Формируем итоговый результат: для каждого сотрудника - сумма резервных заказов
         result['data'] = [
             {
                 'employee_name_1c': emp_name,
-                'value': count  # Количество заявок с суммой > 0
+                'value': total_sum  # Сумма резервных заказов
             }
-            for emp_name, count in employee_counts.items()
+            for emp_name, total_sum in employee_sums.items()
         ]
         
         # Собираем уникальные значения для проверки
-        result['missing_employees'] = list(employee_counts.keys())
+        result['missing_employees'] = list(employee_sums.keys())
         
     except Exception as e:
         result['success'] = False

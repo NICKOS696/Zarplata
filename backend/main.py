@@ -1216,17 +1216,30 @@ async def import_order_count_from_html(
         
         rows = table.find_all('tr')[1:]  # Пропускаем заголовок
         
+        # Группируем по сотрудникам и считаем заявки с суммой > 0
+        from collections import defaultdict
+        employee_order_counts = defaultdict(int)
+        
         for row in rows:
             cells = row.find_all(['td', 'th'])
-            if len(cells) < 3:  # Нужно минимум 3 столбца (Пользователь, № заказа, Количество заявок)
+            if len(cells) < 4:  # Нужно минимум 4 столбца (Пользователь, № заказа, Заявка, Сумма)
                 continue
             
             try:
                 # Парсим данные из строки
                 employee_name = cells[0].get_text(strip=True)
-                # Столбец 3: Количество заявок (индекс 2)
-                order_count_text = cells[2].get_text(strip=True).replace(' ', '').replace(',', '')
-                order_count = int(order_count_text) if order_count_text else 0
+                # Столбец 4: Сумма (индекс 3)
+                sum_text = cells[3].get_text(strip=True).replace(' ', '').replace('\xa0', '').replace(',', '.')
+                
+                # Проверяем сумму
+                try:
+                    sum_value = float(sum_text) if sum_text else 0
+                except ValueError:
+                    sum_value = 0
+                
+                # Считаем только строки с суммой > 0
+                if sum_value <= 0:
+                    continue
                 
                 # Ищем сотрудника
                 employee = employee_map_1c.get(employee_name) or employee_map.get(employee_name)
@@ -1238,13 +1251,21 @@ async def import_order_count_from_html(
                             break
                 
                 if not employee:
-                    failed_count += 1
-                    errors.append(f"Сотрудник не найден: {employee_name}")
-                    continue
+                    continue  # Пропускаем, если сотрудник не найден
                 
+                # Увеличиваем счетчик заявок для этого сотрудника
+                employee_order_counts[employee.id] += 1
+                
+            except Exception as e:
+                failed_count += 1
+                errors.append(f"Ошибка обработки строки: {str(e)}")
+        
+        # Сохраняем результаты для каждого сотрудника
+        for employee_id, order_count in employee_order_counts.items():
+            try:
                 # Обновляем или создаём запись табеля
                 existing = db.query(models.Attendance).filter(
-                    models.Attendance.employee_id == employee.id,
+                    models.Attendance.employee_id == employee_id,
                     models.Attendance.year == year,
                     models.Attendance.month == month
                 ).first()
@@ -1252,9 +1273,10 @@ async def import_order_count_from_html(
                 if existing:
                     existing.order_count = order_count
                 else:
+                    employee = db.query(models.Employee).filter(models.Employee.id == employee_id).first()
                     new_attendance = models.Attendance(
                         company_id=employee.company_id or company_id or 1,
-                        employee_id=employee.id,
+                        employee_id=employee_id,
                         year=year,
                         month=month,
                         days_worked=0,
@@ -1266,7 +1288,7 @@ async def import_order_count_from_html(
                 
             except Exception as e:
                 failed_count += 1
-                errors.append(f"Ошибка обработки строки: {str(e)}")
+                errors.append(f"Ошибка сохранения для сотрудника {employee_id}: {str(e)}")
         
         db.commit()
         
