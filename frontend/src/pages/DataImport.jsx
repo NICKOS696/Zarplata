@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { importAPI } from '../services/api';
 import { Upload, FileText, AlertCircle, CheckCircle, Users, Package } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const DataImport = () => {
+  const { currentCompanyId } = useAuth();
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [importType, setImportType] = useState('bulk');
@@ -135,7 +137,8 @@ const DataImport = () => {
           position: positionSelect?.value || 'agent',
           telegram_id: telegramInput?.value || null,
           supervisor: emp.supervisor,
-          manager: emp.manager
+          manager: emp.manager,
+          company_id: currentCompanyId || 1
         });
       }
       // Перепарсим файл после создания всех сотрудников
