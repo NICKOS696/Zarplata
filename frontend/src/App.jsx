@@ -43,16 +43,23 @@ function Navigation() {
   
   const allNavItems = [
     { path: '/', icon: FileText, label: 'Сводная таблица', page: 'summary', roles: ['admin', 'director', 'analyst', 'supervisor', 'manager'] },
-    { path: '/import', icon: Upload, label: 'Загрузка данных', page: 'import', roles: ['admin'] },
-    { path: '/employees', icon: Users, label: 'Сотрудники', page: 'employees', roles: ['admin', 'director', 'analyst', 'hr'] },
-    { path: '/sales-plans', icon: Target, label: 'Планы продаж', page: 'plans', roles: ['admin', 'director', 'analyst'] },
-    { path: '/sales-facts', icon: TrendingUp, label: 'Факты продаж', page: 'facts', roles: ['admin', 'director'] },
+    
+    // Группа "Загрузка данных"
+    { type: 'header', label: 'Загрузка данных', roles: ['admin'] },
+    { path: '/sales-plans', icon: Target, label: 'Планы продаж', page: 'plans', roles: ['admin', 'director', 'analyst'], isSubItem: true },
+    { path: '/sales-facts', icon: TrendingUp, label: 'Факты продаж', page: 'facts', roles: ['admin', 'director'], isSubItem: true },
+    
+    // Табель
     { path: '/timesheet', icon: Calendar, label: 'Табель', page: 'timesheet', roles: ['admin', 'director', 'analyst', 'hr', 'supervisor', 'manager'] },
-    { path: '/work-calendar', icon: Calendar, label: 'Производственный календарь', page: 'calendar', roles: ['admin'] },
-    { path: '/telegram-templates', icon: MessageSquare, label: 'Шаблоны Telegram', page: 'telegram', roles: ['admin', 'director', 'analyst'] },
-    { path: '/users', icon: Shield, label: 'Пользователи', page: 'users', roles: ['admin', 'director'] },
-    { path: '/companies', icon: Building2, label: 'Компании', page: 'companies', roles: ['admin', 'director'] },
-    { path: '/settings', icon: SettingsIcon, label: 'Настройки', page: 'settings', roles: ['admin', 'director', 'analyst'] },
+    
+    // Группа "Настройки"
+    { type: 'header', label: 'Настройки', roles: ['admin'] },
+    { path: '/settings', icon: SettingsIcon, label: 'Общие настройки', page: 'settings', roles: ['admin', 'director', 'analyst'], isSubItem: true },
+    { path: '/work-calendar', icon: Calendar, label: 'Производственный календарь', page: 'calendar', roles: ['admin'], isSubItem: true },
+    { path: '/companies', icon: Building2, label: 'Компании', page: 'companies', roles: ['admin', 'director'], isSubItem: true },
+    { path: '/users', icon: Shield, label: 'Пользователи', page: 'users', roles: ['admin', 'director'], isSubItem: true },
+    { path: '/employees', icon: Users, label: 'Сотрудники', page: 'employees', roles: ['admin', 'director', 'analyst', 'hr'], isSubItem: true },
+    { path: '/telegram-templates', icon: MessageSquare, label: 'Шаблоны Telegram', page: 'telegram', roles: ['admin', 'director', 'analyst'], isSubItem: true },
   ];
   
   const handleCompanyChange = async (e) => {
@@ -76,23 +83,40 @@ function Navigation() {
         <p className="text-sm text-gray-500 text-center">Расчет продаж и зарплаты</p>
       </div>
       
-      <ul className="space-y-2">
-        {navItems.map((item) => {
+      <ul className="space-y-1">
+        {navItems.map((item, index) => {
+          // Заголовок группы
+          if (item.type === 'header') {
+            return (
+              <li key={`header-${index}`} className="mt-4 mb-2">
+                <div className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  {item.label}
+                </div>
+              </li>
+            );
+          }
+          
+          // Обычный пункт меню
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
+          const isSubItem = item.isSubItem;
           
           return (
             <li key={item.path}>
               <Link
                 to={item.path}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                className={`flex items-center space-x-3 rounded-lg transition-colors ${
+                  isSubItem 
+                    ? 'px-4 py-2 pl-8' 
+                    : 'px-4 py-3'
+                } ${
                   isActive
                     ? 'bg-primary-50 text-primary-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                <Icon size={20} />
-                <span>{item.label}</span>
+                <Icon size={isSubItem ? 16 : 20} />
+                <span className={isSubItem ? 'text-sm' : ''}>{item.label}</span>
               </Link>
             </li>
           );
