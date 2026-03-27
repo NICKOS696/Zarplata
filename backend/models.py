@@ -408,3 +408,23 @@ class User(Base):
     # - admin: полный доступ ко всем данным всех компаний (company_id = null)
     # - analyst: доступ ко всем данным своей компании (company_id указан)
     # - director: доступ к сводной таблице с переключателем компаний (company_id = null)
+
+
+class TelegramMessageTemplate(Base):
+    """Модель шаблона сообщения для Telegram"""
+    __tablename__ = "telegram_message_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)  # Название шаблона
+    template_text = Column(Text, nullable=False)  # Текст шаблона с переменными вида {employee_name}, {brand_plan}, etc.
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    company = relationship("Company")
+
+    __table_args__ = (
+        UniqueConstraint('company_id', 'name', name='uq_telegram_template_company_name'),
+    )

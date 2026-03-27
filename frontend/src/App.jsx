@@ -14,6 +14,7 @@ import {
   Shield,
   LogOut,
   Building2,
+  MessageSquare,
 } from 'lucide-react';
 import iconLogo from './assets/icon.svg';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -33,6 +34,7 @@ import Settings from './pages/Settings';
 import SalaryRuleForm from './pages/SalaryRuleForm';
 import DataImport from './pages/DataImport';
 import Companies from './pages/Companies';
+import TelegramTemplates from './pages/TelegramTemplates';
 import CompanySelector from './components/CompanySelector';
 
 function Navigation() {
@@ -47,6 +49,7 @@ function Navigation() {
     { path: '/sales-facts', icon: TrendingUp, label: 'Факты продаж', page: 'facts', roles: ['admin', 'director'] },
     { path: '/timesheet', icon: Calendar, label: 'Табель', page: 'timesheet', roles: ['admin', 'director', 'analyst', 'hr', 'supervisor', 'manager'] },
     { path: '/work-calendar', icon: Calendar, label: 'Производственный календарь', page: 'calendar', roles: ['admin'] },
+    { path: '/telegram-templates', icon: MessageSquare, label: 'Шаблоны Telegram', page: 'telegram', roles: ['admin', 'director', 'analyst'] },
     { path: '/users', icon: Shield, label: 'Пользователи', page: 'users', roles: ['admin', 'director'] },
     { path: '/companies', icon: Building2, label: 'Компании', page: 'companies', roles: ['admin', 'director'] },
     { path: '/settings', icon: SettingsIcon, label: 'Настройки', page: 'settings', roles: ['admin', 'director', 'analyst'] },
@@ -241,6 +244,13 @@ function AppContent() {
           <Route path="/companies" element={
             <PrivateRoute allowedRoles={['admin', 'director']}>
               <Companies />
+            </PrivateRoute>
+          } />
+          
+          {/* Шаблоны Telegram - admin, director, analyst */}
+          <Route path="/telegram-templates" element={
+            <PrivateRoute allowedRoles={['admin', 'director', 'analyst']}>
+              <TelegramTemplates />
             </PrivateRoute>
           } />
           

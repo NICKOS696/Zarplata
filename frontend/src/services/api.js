@@ -290,4 +290,13 @@ api.interceptors.response.use(
   }
 );
 
+// Telegram Message Templates
+export const telegramTemplatesAPI = {
+  getAll: (companyId) => api.get('/telegram-templates', { params: { company_id: companyId } }),
+  getById: (id) => api.get(`/telegram-templates/${id}`),
+  create: (data) => api.post('/telegram-templates', data),
+  update: (id, data) => api.put(`/telegram-templates/${id}`, data),
+  delete: (id) => api.delete(`/telegram-templates/${id}`),
+};
+
 export default api;

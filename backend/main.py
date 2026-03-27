@@ -2778,6 +2778,128 @@ def delete_user(
     return {"message": "User deleted successfully"}
 
 
+# ==================== TELEGRAM MESSAGE TEMPLATES ====================
+
+@app.get("/api/telegram-templates", response_model=List[schemas.TelegramMessageTemplate])
+def get_telegram_templates(
+    company_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Получить список шаблонов сообщений"""
+    query = db.query(models.TelegramMessageTemplate)
+    
+    # Фильтруем по компании
+    if current_user.role == 'admin':
+        if company_id:
+            query = query.filter(models.TelegramMessageTemplate.company_id == company_id)
+    else:
+        # Для не-админов показываем только шаблоны их компании
+        query = query.filter(models.TelegramMessageTemplate.company_id == current_user.company_id)
+    
+    return query.order_by(models.TelegramMessageTemplate.name).all()
+
+
+@app.get("/api/telegram-templates/{template_id}", response_model=schemas.TelegramMessageTemplate)
+def get_telegram_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Получить шаблон сообщения по ID"""
+    template = db.query(models.TelegramMessageTemplate).filter(
+        models.TelegramMessageTemplate.id == template_id
+    ).first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    
+    # Проверяем доступ
+    if current_user.role != 'admin' and template.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому шаблону")
+    
+    return template
+
+
+@app.post("/api/telegram-templates", response_model=schemas.TelegramMessageTemplate)
+def create_telegram_template(
+    template: schemas.TelegramMessageTemplateCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Создать новый шаблон сообщения"""
+    # Проверяем доступ
+    if current_user.role != 'admin' and template.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этой компании")
+    
+    # Проверяем уникальность имени в рамках компании
+    existing = db.query(models.TelegramMessageTemplate).filter(
+        models.TelegramMessageTemplate.company_id == template.company_id,
+        models.TelegramMessageTemplate.name == template.name
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Шаблон с таким именем уже существует")
+    
+    new_template = models.TelegramMessageTemplate(**template.dict())
+    db.add(new_template)
+    db.commit()
+    db.refresh(new_template)
+    return new_template
+
+
+@app.put("/api/telegram-templates/{template_id}", response_model=schemas.TelegramMessageTemplate)
+def update_telegram_template(
+    template_id: int,
+    template_update: schemas.TelegramMessageTemplateUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Обновить шаблон сообщения"""
+    template = db.query(models.TelegramMessageTemplate).filter(
+        models.TelegramMessageTemplate.id == template_id
+    ).first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    
+    # Проверяем доступ
+    if current_user.role != 'admin' and template.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому шаблону")
+    
+    # Обновляем поля
+    update_data = template_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(template, field, value)
+    
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+@app.delete("/api/telegram-templates/{template_id}")
+def delete_telegram_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Удалить шаблон сообщения"""
+    template = db.query(models.TelegramMessageTemplate).filter(
+        models.TelegramMessageTemplate.id == template_id
+    ).first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    
+    # Проверяем доступ
+    if current_user.role != 'admin' and template.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому шаблону")
+    
+    db.delete(template)
+    db.commit()
+    return {"success": True, "message": "Шаблон удален"}
+
+
 # ==================== HEALTH CHECK ====================
 
 @app.get("/")

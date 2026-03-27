@@ -553,3 +553,30 @@ class TokenData(BaseModel):
     username: Optional[str] = None
     role: Optional[str] = None
     company_id: Optional[int] = None
+
+
+# Telegram Message Template Schemas
+class TelegramMessageTemplateBase(BaseModel):
+    name: str
+    template_text: str
+    is_active: bool = True
+
+
+class TelegramMessageTemplateCreate(TelegramMessageTemplateBase):
+    company_id: int
+
+
+class TelegramMessageTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    template_text: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class TelegramMessageTemplate(TelegramMessageTemplateBase):
+    id: int
+    company_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
