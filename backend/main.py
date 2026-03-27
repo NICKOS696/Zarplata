@@ -2687,8 +2687,6 @@ async def send_telegram_reports(
     sys.stderr.write(f"{'='*80}\n\n")
     sys.stderr.flush()
     
-    from telegram_template_renderer import render_template, prepare_employee_data_for_template
-    from summary_calculator import calculate_summary_report
     import httpx
     
     # Получаем шаблон
@@ -2699,6 +2697,10 @@ async def send_telegram_reports(
     if not template:
         raise HTTPException(status_code=404, detail="Шаблон не найден")
     
+    # Проверяем доступ
+    if current_user.role != 'admin' and template.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому шаблону")
+    
     # Получаем компанию и токен бота
     company = db.query(models.Company).filter(
         models.Company.id == template.company_id
@@ -2707,19 +2709,14 @@ async def send_telegram_reports(
     if not company or not company.telegram_bot_token:
         raise HTTPException(status_code=400, detail="Токен Telegram бота не настроен для этой компании")
     
-    # Получаем данные сводной таблицы
-    try:
-        logger.info(f"=== Получение данных сводной таблицы для компании {template.company_id}, {year}-{month} ===")
-        summary_data = calculate_summary_report(db, template.company_id, year, month)
-        logger.info(f"Получено данных по {len(summary_data.get('data', []))} сотрудникам")
-    except Exception as e:
-        import traceback
-        logger.error(f"ОШИБКА получения данных: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Ошибка получения данных: {str(e)}")
-    
-    # Если не указаны конкретные сотрудники, отправляем всем
+    # Если не указаны конкретные сотрудники, получаем всех активных с Telegram ID
     if not employee_ids:
-        employee_ids = [item['employee']['id'] for item in summary_data.get('data', [])]
+        employees = db.query(models.Employee).filter(
+            models.Employee.company_id == template.company_id,
+            models.Employee.is_active == True,
+            models.Employee.telegram_id.isnot(None)
+        ).all()
+        employee_ids = [e.id for e in employees]
     
     logger.info(f"=== Отправка сообщений {len(employee_ids)} сотрудникам ===")
     
@@ -2747,20 +2744,10 @@ async def send_telegram_reports(
                 failed_count += 1
                 continue
             
-            # Подготавливаем данные
-            logger.info(f"Подготовка данных для {employee.full_name}")
-            employee_data = prepare_employee_data_for_template(summary_data, emp_id)
-            
-            if not employee_data:
-                logger.warning(f"Нет данных в сводной для {employee.full_name}")
-                errors.append(f"Сотрудник {employee.full_name}: нет данных в сводной")
-                failed_count += 1
-                continue
-            
-            # Рендерим сообщение
-            logger.info(f"Рендеринг шаблона для {employee.full_name}")
-            message = render_template(template.template_text, employee_data)
-            logger.info(f"Сообщение отрендерено, длина: {len(message)} символов")
+            # ВРЕМЕННО: отправляем простое тестовое сообщение
+            logger.info(f"Отправка тестового сообщения для {employee.full_name}")
+            message = f"Тестовое сообщение для {employee.full_name}\n\nШаблон: {template.name}\nПериод: {month}/{year}"
+            logger.info(f"Сообщение подготовлено, длина: {len(message)} символов")
             
             # Отправляем в Telegram
             logger.info(f"Отправка в Telegram ID: {employee.telegram_id}")
