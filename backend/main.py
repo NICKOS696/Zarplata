@@ -2900,6 +2900,153 @@ def delete_telegram_template(
     return {"success": True, "message": "Шаблон удален"}
 
 
+@app.post("/api/telegram-templates/{template_id}/render")
+def render_telegram_template(
+    template_id: int,
+    employee_id: int,
+    year: int,
+    month: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Рендерит шаблон с данными конкретного сотрудника"""
+    from telegram_template_renderer import render_template, prepare_employee_data_for_template
+    from summary_calculator import calculate_summary_report
+    
+    # Получаем шаблон
+    template = db.query(models.TelegramMessageTemplate).filter(
+        models.TelegramMessageTemplate.id == template_id
+    ).first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    
+    # Проверяем доступ
+    if current_user.role != 'admin' and template.company_id != current_user.company_id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому шаблону")
+    
+    # Получаем данные сводной таблицы
+    try:
+        summary_data = calculate_summary_report(db, template.company_id, year, month)
+        
+        # Подготавливаем данные сотрудника
+        employee_data = prepare_employee_data_for_template(summary_data, employee_id)
+        
+        if not employee_data:
+            raise HTTPException(status_code=404, detail="Данные сотрудника не найдены")
+        
+        # Рендерим шаблон
+        rendered_message = render_template(template.template_text, employee_data)
+        
+        return {
+            "success": True,
+            "message": rendered_message,
+            "employee_name": employee_data.get('employee_name', '')
+        }
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"ERROR in render_telegram_template: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Ошибка рендеринга: {str(e)}")
+
+
+@app.post("/api/telegram/send-reports")
+async def send_telegram_reports(
+    template_id: int,
+    year: int,
+    month: int,
+    employee_ids: Optional[List[int]] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Отправляет отчеты сотрудникам в Telegram"""
+    from telegram_template_renderer import render_template, prepare_employee_data_for_template
+    from summary_calculator import calculate_summary_report
+    import httpx
+    
+    # Получаем шаблон
+    template = db.query(models.TelegramMessageTemplate).filter(
+        models.TelegramMessageTemplate.id == template_id
+    ).first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Шаблон не найден")
+    
+    # Получаем компанию и токен бота
+    company = db.query(models.Company).filter(
+        models.Company.id == template.company_id
+    ).first()
+    
+    if not company or not company.telegram_bot_token:
+        raise HTTPException(status_code=400, detail="Токен Telegram бота не настроен для этой компании")
+    
+    # Получаем данные сводной таблицы
+    try:
+        summary_data = calculate_summary_report(db, template.company_id, year, month)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка получения данных: {str(e)}")
+    
+    # Если не указаны конкретные сотрудники, отправляем всем
+    if not employee_ids:
+        employee_ids = [item['employee']['id'] for item in summary_data.get('data', [])]
+    
+    sent_count = 0
+    failed_count = 0
+    errors = []
+    
+    for emp_id in employee_ids:
+        try:
+            # Получаем сотрудника
+            employee = db.query(models.Employee).filter(
+                models.Employee.id == emp_id
+            ).first()
+            
+            if not employee or not employee.telegram_id:
+                errors.append(f"Сотрудник {emp_id}: нет Telegram ID")
+                failed_count += 1
+                continue
+            
+            # Подготавливаем данные
+            employee_data = prepare_employee_data_for_template(summary_data, emp_id)
+            
+            if not employee_data:
+                errors.append(f"Сотрудник {employee.full_name}: нет данных в сводной")
+                failed_count += 1
+                continue
+            
+            # Рендерим сообщение
+            message = render_template(template.template_text, employee_data)
+            
+            # Отправляем в Telegram
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"https://api.telegram.org/bot{company.telegram_bot_token}/sendMessage",
+                    json={
+                        "chat_id": employee.telegram_id,
+                        "text": message,
+                        "parse_mode": "HTML"
+                    },
+                    timeout=10.0
+                )
+                
+                if response.status_code == 200:
+                    sent_count += 1
+                else:
+                    errors.append(f"Сотрудник {employee.full_name}: ошибка отправки - {response.text}")
+                    failed_count += 1
+                    
+        except Exception as e:
+            errors.append(f"Сотрудник {emp_id}: {str(e)}")
+            failed_count += 1
+    
+    return {
+        "success": True,
+        "sent_count": sent_count,
+        "failed_count": failed_count,
+        "errors": errors if errors else None
+    }
+
+
 # ==================== HEALTH CHECK ====================
 
 @app.get("/")

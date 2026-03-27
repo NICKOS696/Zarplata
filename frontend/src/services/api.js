@@ -297,6 +297,19 @@ export const telegramTemplatesAPI = {
   create: (data) => api.post('/telegram-templates', data),
   update: (id, data) => api.put(`/telegram-templates/${id}`, data),
   delete: (id) => api.delete(`/telegram-templates/${id}`),
+  render: (templateId, employeeId, year, month) => 
+    api.post(`/telegram-templates/${templateId}/render`, null, {
+      params: { employee_id: employeeId, year, month }
+    }),
+  sendReports: (templateId, year, month, employeeIds = null) =>
+    api.post('/telegram/send-reports', null, {
+      params: { 
+        template_id: templateId, 
+        year, 
+        month,
+        ...(employeeIds && { employee_ids: employeeIds })
+      }
+    }),
 };
 
 export default api;
