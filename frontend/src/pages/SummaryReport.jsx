@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { employeesAPI, brandsAPI, kpiTypesAPI, salesPlansAPI, salesFactsAPI, reservedOrdersAPI, territoriesAPI, salaryRulesAPI, workCalendarAPI, attendanceAPI, telegramAPI, timesheetAPI, bonusesAPI } from '../services/api';
-import { FileText, Calendar, Send, UserCheck, Download } from 'lucide-react';
+import { employeesAPI, brandsAPI, kpiTypesAPI, salesPlansAPI, salesFactsAPI, reservedOrdersAPI, territoriesAPI, salaryRulesAPI, workCalendarAPI, attendanceAPI, telegramAPI, timesheetAPI, bonusesAPI, telegramTemplatesAPI } from '../services/api';
+import { FileText, Calendar, Send, UserCheck, Download, MessageSquare } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { CURRENCY } from '../config';
 import { useAuth } from '../contexts/AuthContext';
 import XLSX from 'xlsx-js-style';
 
 function SummaryReport() {
-  const { user } = useAuth();
+  const { user, currentCompanyId } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [brands, setBrands] = useState([]);
   const [kpiTypes, setKpiTypes] = useState([]);
@@ -22,6 +22,13 @@ function SummaryReport() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [filling, setFilling] = useState(false);
+  
+  // Telegram шаблоны
+  const [telegramTemplates, setTelegramTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [showTelegramModal, setShowTelegramModal] = useState(false);
+  const [selectedEmployees, setSelectedEmployees] = useState([]);
+  const [sendingTelegram, setSendingTelegram] = useState(false);
   
   const today = new Date();
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
@@ -41,7 +48,7 @@ function SummaryReport() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [empsRes, brandsRes, kpisRes, territoriesRes, rulesRes, plansRes, factsRes, attRes, reservedRes, bonusesRes] = await Promise.all([
+      const [empsRes, brandsRes, kpisRes, territoriesRes, rulesRes, plansRes, factsRes, attRes, reservedRes, bonusesRes, templatesRes] = await Promise.all([
         employeesAPI.getAll(),
         brandsAPI.getAll(),
         kpiTypesAPI.getAll(),
@@ -52,6 +59,7 @@ function SummaryReport() {
         attendanceAPI.getAll({ year: selectedYear, month: selectedMonth }),
         reservedOrdersAPI.getAll({ date_from: periodStart, date_to: periodEnd }),
         bonusesAPI.getAll({ date_from: periodStart, date_to: periodEnd }),
+        telegramTemplatesAPI.getAll(currentCompanyId),
       ]);
       setEmployees(empsRes.data);
       setBrands(brandsRes.data);
@@ -63,6 +71,7 @@ function SummaryReport() {
       setAttendance(attRes.data);
       setReservedOrders(reservedRes.data);
       setBonuses(bonusesRes.data);
+      setTelegramTemplates(templatesRes.data);
       
       // Собираем активные бренды и KPI из мотивационных сеток
       const motivatedBrandIds = new Set();
@@ -812,36 +821,68 @@ function SummaryReport() {
     }
   };
 
-  const handleSendTelegramReports = async () => {
-    if (!window.confirm('Отправить отчеты всем сотрудникам с Telegram ID?')) {
+  const handleSendTelegramReports = () => {
+    // Открываем модальное окно для выбора шаблона
+    setShowTelegramModal(true);
+    setSelectedEmployees([]); // Сбрасываем выбор сотрудников
+  };
+
+  const handleConfirmSendTelegram = async () => {
+    if (!selectedTemplate) {
+      alert('Выберите шаблон сообщения');
+      return;
+    }
+
+    const employeeIds = selectedEmployees.length > 0 ? selectedEmployees : null;
+    const confirmMessage = employeeIds 
+      ? `Отправить отчеты выбранным сотрудникам (${selectedEmployees.length})?`
+      : 'Отправить отчеты всем сотрудникам с Telegram ID?';
+
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
     try {
-      setSending(true);
-      console.log('Отправка отчетов за:', selectedYear, selectedMonth);
-      const response = await telegramAPI.sendReports(selectedYear, selectedMonth);
-      console.log('Ответ сервера:', response.data);
+      setSendingTelegram(true);
+      const response = await telegramTemplatesAPI.sendReports(
+        selectedTemplate,
+        selectedYear,
+        selectedMonth,
+        employeeIds
+      );
       
-      // Показываем детали ошибок, если есть
-      const failedResults = response.data.results.filter(r => !r.success);
-      let message = `Отправка завершена!\n\nУспешно: ${response.data.success}\nОшибок: ${response.data.failed}\nВсего: ${response.data.total}`;
+      let message = `Отправка завершена!\n\nУспешно: ${response.data.sent_count}\nОшибок: ${response.data.failed_count}`;
       
-      if (failedResults.length > 0) {
-        message += '\n\nОшибки:\n';
-        failedResults.forEach(r => {
-          message += `\n${r.employee_name}: ${r.error || 'Неизвестная ошибка'}`;
-        });
+      if (response.data.errors && response.data.errors.length > 0) {
+        message += '\n\nОшибки:\n' + response.data.errors.slice(0, 5).join('\n');
+        if (response.data.errors.length > 5) {
+          message += `\n... и еще ${response.data.errors.length - 5}`;
+        }
       }
       
       alert(message);
+      setShowTelegramModal(false);
     } catch (error) {
       console.error('Ошибка отправки отчетов:', error);
-      console.error('URL запроса:', error.config?.url);
-      console.error('Полный URL:', error.config?.baseURL + error.config?.url);
       alert('Ошибка при отправке отчетов: ' + (error.response?.data?.detail || error.message));
     } finally {
-      setSending(false);
+      setSendingTelegram(false);
+    }
+  };
+
+  const toggleEmployeeSelection = (employeeId) => {
+    setSelectedEmployees(prev => 
+      prev.includes(employeeId)
+        ? prev.filter(id => id !== employeeId)
+        : [...prev, employeeId]
+    );
+  };
+
+  const toggleAllEmployees = () => {
+    if (selectedEmployees.length === sortedEmployees.length) {
+      setSelectedEmployees([]);
+    } else {
+      setSelectedEmployees(sortedEmployees.map(emp => emp.id));
     }
   };
 
@@ -1446,6 +1487,117 @@ function SummaryReport() {
           </table>
         )}
       </div>
+
+      {/* Модальное окно отправки в Telegram */}
+      {showTelegramModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b flex justify-between items-center">
+              <h2 className="text-xl font-bold flex items-center">
+                <MessageSquare className="mr-2" size={24} />
+                Отправка отчетов в Telegram
+              </h2>
+              <button 
+                onClick={() => setShowTelegramModal(false)} 
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-6">
+                {/* Выбор шаблона */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Шаблон сообщения *</label>
+                  {telegramTemplates.length === 0 ? (
+                    <div className="text-sm text-gray-500 bg-gray-50 p-4 rounded">
+                      Нет доступных шаблонов. Создайте шаблон в разделе "Шаблоны Telegram".
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedTemplate}
+                      onChange={(e) => setSelectedTemplate(e.target.value)}
+                      className="input w-full"
+                    >
+                      <option value="">Выберите шаблон...</option>
+                      {telegramTemplates.filter(t => t.is_active).map(template => (
+                        <option key={template.id} value={template.id}>
+                          {template.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Выбор сотрудников */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium">
+                      Сотрудники (оставьте пустым для отправки всем)
+                    </label>
+                    <button
+                      onClick={toggleAllEmployees}
+                      className="text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      {selectedEmployees.length === sortedEmployees.length ? 'Снять все' : 'Выбрать всех'}
+                    </button>
+                  </div>
+                  <div className="border rounded max-h-64 overflow-y-auto">
+                    {sortedEmployees.map(emp => (
+                      <label
+                        key={emp.id}
+                        className="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedEmployees.includes(emp.id)}
+                          onChange={() => toggleEmployeeSelection(emp.id)}
+                          className="mr-3"
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium">{emp.full_name}</div>
+                          <div className="text-sm text-gray-500">
+                            {emp.telegram_id ? (
+                              <span className="text-green-600">✓ Telegram ID: {emp.telegram_id}</span>
+                            ) : (
+                              <span className="text-red-600">✗ Нет Telegram ID</span>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2">
+                    {selectedEmployees.length > 0 
+                      ? `Выбрано: ${selectedEmployees.length} из ${sortedEmployees.length}`
+                      : `Будет отправлено всем сотрудникам с Telegram ID`
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t flex justify-end space-x-3">
+              <button 
+                onClick={() => setShowTelegramModal(false)} 
+                className="btn btn-secondary"
+                disabled={sendingTelegram}
+              >
+                Отмена
+              </button>
+              <button 
+                onClick={handleConfirmSendTelegram}
+                disabled={!selectedTemplate || sendingTelegram || telegramTemplates.length === 0}
+                className="btn btn-primary flex items-center space-x-2"
+              >
+                <Send size={20} />
+                <span>{sendingTelegram ? 'Отправка...' : 'Отправить'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
