@@ -45,6 +45,12 @@ def render_simple_template(template_text: str, data: dict) -> str:
     - {days_remaining} - осталось рабочих дней
     - {progress_bar} - шкала выполнения
     
+    Циклы:
+    - {brands_loop}...{/brands_loop} - цикл по брендам
+      Внутри доступны: {brand_name}, {brand_plan}, {brand_fact}, {brand_percent}, {brand_accrual}
+    - {kpi_loop}...{/kpi_loop} - цикл по KPI
+      Внутри доступны: {kpi_name}, {kpi_plan}, {kpi_fact}, {kpi_percent}, {kpi_accrual}
+    
     Args:
         template_text: Текст шаблона с переменными
         data: Словарь с данными для подстановки
@@ -53,6 +59,42 @@ def render_simple_template(template_text: str, data: dict) -> str:
         Отрендеренный текст сообщения
     """
     result = template_text
+    
+    # Обрабатываем цикл по брендам
+    brands_loop_pattern = r'\{brands_loop\}(.*?)\{/brands_loop\}'
+    brands_match = re.search(brands_loop_pattern, result, re.DOTALL)
+    if brands_match:
+        loop_template = brands_match.group(1)
+        brands_output = []
+        
+        for brand in data.get('brands', []):
+            brand_text = loop_template
+            brand_text = brand_text.replace('{brand_name}', str(brand.get('name', '')))
+            brand_text = brand_text.replace('{brand_plan}', format_number(brand.get('plan', 0)))
+            brand_text = brand_text.replace('{brand_fact}', format_number(brand.get('fact', 0)))
+            brand_text = brand_text.replace('{brand_percent}', f"{brand.get('percent', 0):.0f}")
+            brand_text = brand_text.replace('{brand_accrual}', format_number(brand.get('accrual', 0)))
+            brands_output.append(brand_text)
+        
+        result = re.sub(brands_loop_pattern, ''.join(brands_output), result, flags=re.DOTALL)
+    
+    # Обрабатываем цикл по KPI
+    kpi_loop_pattern = r'\{kpi_loop\}(.*?)\{/kpi_loop\}'
+    kpi_match = re.search(kpi_loop_pattern, result, re.DOTALL)
+    if kpi_match:
+        loop_template = kpi_match.group(1)
+        kpi_output = []
+        
+        for kpi in data.get('kpis', []):
+            kpi_text = loop_template
+            kpi_text = kpi_text.replace('{kpi_name}', str(kpi.get('name', '')))
+            kpi_text = kpi_text.replace('{kpi_plan}', format_number(kpi.get('plan', 0)))
+            kpi_text = kpi_text.replace('{kpi_fact}', format_number(kpi.get('fact', 0)))
+            kpi_text = kpi_text.replace('{kpi_percent}', f"{kpi.get('percent', 0):.0f}")
+            kpi_text = kpi_text.replace('{kpi_accrual}', format_number(kpi.get('accrual', 0)))
+            kpi_output.append(kpi_text)
+        
+        result = re.sub(kpi_loop_pattern, ''.join(kpi_output), result, flags=re.DOTALL)
     
     # Простые текстовые переменные
     result = result.replace('{employee_name}', str(data.get('employee_name', '')))
