@@ -74,6 +74,7 @@ def render_simple_template(template_text: str, data: dict) -> str:
             brand_text = brand_text.replace('{brand_fact}', format_number(brand.get('fact', 0)))
             brand_text = brand_text.replace('{brand_percent}', f"{brand.get('percent', 0):.0f}")
             brand_text = brand_text.replace('{brand_accrual}', format_number(brand.get('accrual', 0)))
+            brand_text = brand_text.replace('{brand_progress_bar}', render_progress_bar(brand.get('percent', 0)))
             brands_output.append(brand_text)
         
         result = re.sub(brands_loop_pattern, ''.join(brands_output), result, flags=re.DOTALL)
@@ -92,6 +93,7 @@ def render_simple_template(template_text: str, data: dict) -> str:
             kpi_text = kpi_text.replace('{kpi_fact}', format_number(kpi.get('fact', 0)))
             kpi_text = kpi_text.replace('{kpi_percent}', f"{kpi.get('percent', 0):.0f}")
             kpi_text = kpi_text.replace('{kpi_accrual}', format_number(kpi.get('accrual', 0)))
+            kpi_text = kpi_text.replace('{kpi_progress_bar}', render_progress_bar(kpi.get('percent', 0)))
             kpi_output.append(kpi_text)
         
         result = re.sub(kpi_loop_pattern, ''.join(kpi_output), result, flags=re.DOTALL)
