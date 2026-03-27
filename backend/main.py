@@ -2955,7 +2955,7 @@ async def send_telegram_reports(
     template_id: int,
     year: int,
     month: int,
-    employee_ids: Optional[List[int]] = None,
+    employee_ids: Optional[List[int]] = Query(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
