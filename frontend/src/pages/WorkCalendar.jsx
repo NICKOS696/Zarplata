@@ -40,7 +40,10 @@ function WorkCalendar() {
     e.preventDefault();
     try {
       if (editingCalendar) {
-        await workCalendarAPI.update(editingCalendar.id, formData);
+        await workCalendarAPI.update(formData.year, formData.month, {
+          working_days: formData.working_days,
+          notes: formData.notes
+        });
       } else {
         await workCalendarAPI.create(formData);
       }
