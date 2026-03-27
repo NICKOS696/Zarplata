@@ -49,20 +49,20 @@ function Navigation() {
     
     // Группа "Загрузка данных"
     { type: 'header', label: 'Загрузка данных', roles: ['admin'] },
-    { path: '/import', label: 'Загрузка данных', page: 'import', roles: ['admin'], isSubItem: true },
-    { path: '/sales-plans', label: 'Планы продаж', page: 'plans', roles: ['admin', 'director', 'analyst'], isSubItem: true },
-    { path: '/sales-facts', label: 'Факты продаж', page: 'facts', roles: ['admin', 'director'], isSubItem: true },
+    { path: '/import', icon: Upload, label: 'Загрузка данных', page: 'import', roles: ['admin'], isSubItem: true },
+    { path: '/sales-plans', icon: Target, label: 'Планы продаж', page: 'plans', roles: ['admin', 'director', 'analyst'], isSubItem: true },
+    { path: '/sales-facts', icon: TrendingUp, label: 'Факты продаж', page: 'facts', roles: ['admin', 'director'], isSubItem: true },
     
     { type: 'divider', roles: ['admin'] },
     
     // Группа "Настройки"
     { type: 'header', label: 'Настройки', roles: ['admin'] },
-    { path: '/settings', label: 'Общие настройки', page: 'settings', roles: ['admin', 'director', 'analyst'], isSubItem: true },
-    { path: '/work-calendar', label: 'Производственный календарь', page: 'calendar', roles: ['admin'], isSubItem: true },
-    { path: '/companies', label: 'Компании', page: 'companies', roles: ['admin', 'director'], isSubItem: true },
-    { path: '/users', label: 'Пользователи', page: 'users', roles: ['admin', 'director'], isSubItem: true },
-    { path: '/employees', label: 'Сотрудники', page: 'employees', roles: ['admin', 'director', 'analyst', 'hr'], isSubItem: true },
-    { path: '/telegram-templates', label: 'Шаблоны Telegram', page: 'telegram', roles: ['admin', 'director', 'analyst'], isSubItem: true },
+    { path: '/settings', icon: SettingsIcon, label: 'Общие настройки', page: 'settings', roles: ['admin', 'director', 'analyst'], isSubItem: true },
+    { path: '/work-calendar', icon: Calendar, label: 'Производственный календарь', page: 'calendar', roles: ['admin'], isSubItem: true },
+    { path: '/companies', icon: Building2, label: 'Компании', page: 'companies', roles: ['admin', 'director'], isSubItem: true },
+    { path: '/users', icon: Shield, label: 'Пользователи', page: 'users', roles: ['admin', 'director'], isSubItem: true },
+    { path: '/employees', icon: Users, label: 'Сотрудники', page: 'employees', roles: ['admin', 'director', 'analyst', 'hr'], isSubItem: true },
+    { path: '/telegram-templates', icon: MessageSquare, label: 'Шаблоны Telegram', page: 'telegram', roles: ['admin', 'director', 'analyst'], isSubItem: true },
   ];
   
   const handleCompanyChange = async (e) => {
@@ -117,17 +117,17 @@ function Navigation() {
             <li key={item.path}>
               <Link
                 to={item.path}
-                className={`flex items-center rounded-lg transition-colors ${
+                className={`flex items-center space-x-3 rounded-lg transition-colors ${
                   isSubItem 
                     ? 'px-4 py-2 pl-6' 
-                    : 'px-4 py-3 space-x-3'
+                    : 'px-4 py-3'
                 } ${
                   isActive
                     ? 'bg-primary-50 text-primary-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                {Icon && <Icon size={20} />}
+                {Icon && <Icon size={isSubItem ? 16 : 20} />}
                 <span className={isSubItem ? 'text-sm' : ''}>{item.label}</span>
               </Link>
             </li>
