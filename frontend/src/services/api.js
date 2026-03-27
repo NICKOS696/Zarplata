@@ -301,16 +301,11 @@ export const telegramTemplatesAPI = {
     api.post(`/telegram-templates/${templateId}/render`, null, {
       params: { employee_id: employeeId, year, month }
     }),
-  sendReports: (templateId, year, month, employeeIds = null) => {
-    const params = new URLSearchParams({
+  sendReports: (templateId, employeesData) => {
+    return api.post('/telegram/send-reports', {
       template_id: templateId,
-      year: year,
-      month: month
+      employees_data: employeesData
     });
-    if (employeeIds && employeeIds.length > 0) {
-      employeeIds.forEach(id => params.append('employee_ids', id));
-    }
-    return api.post(`/telegram/send-reports?${params.toString()}`);
   },
 };
 

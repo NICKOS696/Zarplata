@@ -833,22 +833,68 @@ function SummaryReport() {
       return;
     }
 
-    const employeeIds = selectedEmployees.length > 0 ? selectedEmployees : null;
-    const confirmMessage = employeeIds 
-      ? `Отправить отчеты выбранным сотрудникам (${selectedEmployees.length})?`
-      : 'Отправить отчеты всем сотрудникам с Telegram ID?';
+    // Фильтруем данные сотрудников для отправки
+    const employeesToSend = selectedEmployees.length > 0 
+      ? reportData.filter(data => selectedEmployees.includes(data.employee.id))
+      : reportData;
+    
+    // Фильтруем только тех, у кого есть Telegram ID
+    const employeesWithTelegram = employeesToSend.filter(data => data.employee.telegram_id);
+    
+    if (employeesWithTelegram.length === 0) {
+      alert('Нет сотрудников с Telegram ID для отправки');
+      return;
+    }
 
+    const confirmMessage = `Отправить отчеты ${employeesWithTelegram.length} сотрудникам?`;
     if (!window.confirm(confirmMessage)) {
       return;
     }
 
     try {
       setSendingTelegram(true);
+      
+      // Подготавливаем данные для отправки
+      const employeesData = employeesWithTelegram.map(data => ({
+        employee_id: data.employee.id,
+        employee_name: data.employee.full_name,
+        telegram_id: data.employee.telegram_id,
+        territory: data.employee.territory?.name || '',
+        fixed_salary: data.fixedSalary,
+        travel_allowance: data.travelAllowance,
+        bonus: data.bonus,
+        days_worked: data.daysWorked,
+        working_days: workCalendar?.working_days || 0,
+        brands: data.brandData.map(b => ({
+          name: b.brand.name,
+          plan: b.plan,
+          fact: b.fact,
+          percent: b.percent,
+          accrual: b.accrual
+        })),
+        kpis: data.kpiData.map(k => ({
+          name: k.kpi.name,
+          plan: k.plan,
+          fact: k.fact,
+          percent: k.percent,
+          accrual: k.accrual
+        })),
+        total_plan: data.totalPlan,
+        total_fact: data.totalFact,
+        total_percent: data.totalPercent,
+        total_accrual: data.totalAccrual,
+        total_salary: data.fixedSalary + data.travelAllowance + data.bonus + data.totalAccrual,
+        order_count: data.orderCount || 0,
+        reserved_orders: data.totalReserved,
+        forecast_result: data.forecastResult || 0,
+        forecast_percent: data.forecastPercent || 0,
+        plan_per_day: data.planPerDay || 0,
+        days_remaining: data.daysRemaining || 0
+      }));
+      
       const response = await telegramTemplatesAPI.sendReports(
         selectedTemplate,
-        selectedYear,
-        selectedMonth,
-        employeeIds
+        employeesData
       );
       
       let message = `Отправка завершена!\n\nУспешно: ${response.data.sent_count}\nОшибок: ${response.data.failed_count}`;

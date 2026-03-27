@@ -2669,29 +2669,25 @@ def render_telegram_template(
         raise HTTPException(status_code=500, detail=f"Ошибка рендеринга: {str(e)}")
 
 
+class TelegramSendRequest(schemas.BaseModel):
+    template_id: int
+    employees_data: List[dict]
+
 @app.post("/api/telegram/send-reports")
 async def send_telegram_reports(
-    template_id: int,
-    year: int,
-    month: int,
-    employee_ids: Optional[List[int]] = Query(None),
+    request: TelegramSendRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Отправляет отчеты сотрудникам в Telegram"""
-    import sys
-    sys.stderr.write(f"\n\n{'='*80}\n")
-    sys.stderr.write(f"TELEGRAM SEND REPORTS CALLED\n")
-    sys.stderr.write(f"template_id={template_id}, year={year}, month={month}\n")
-    sys.stderr.write(f"employee_ids={employee_ids}\n")
-    sys.stderr.write(f"{'='*80}\n\n")
-    sys.stderr.flush()
-    
+    """Отправляет отчеты сотрудникам в Telegram с готовыми данными из фронтенда"""
     import httpx
+    from simple_template_renderer import render_simple_template
+    
+    logger.info(f"=== Отправка сообщений {len(request.employees_data)} сотрудникам ===")
     
     # Получаем шаблон
     template = db.query(models.TelegramMessageTemplate).filter(
-        models.TelegramMessageTemplate.id == template_id
+        models.TelegramMessageTemplate.id == request.template_id
     ).first()
     
     if not template:
@@ -2709,66 +2705,35 @@ async def send_telegram_reports(
     if not company or not company.telegram_bot_token:
         raise HTTPException(status_code=400, detail="Токен Telegram бота не настроен для этой компании")
     
-    # Если не указаны конкретные сотрудники, получаем всех активных с Telegram ID
-    if not employee_ids:
-        employees = db.query(models.Employee).filter(
-            models.Employee.company_id == template.company_id,
-            models.Employee.is_active == True,
-            models.Employee.telegram_id.isnot(None)
-        ).all()
-        employee_ids = [e.id for e in employees]
-    
-    logger.info(f"=== Отправка сообщений {len(employee_ids)} сотрудникам ===")
-    
     sent_count = 0
     failed_count = 0
     errors = []
     
-    for emp_id in employee_ids:
+    for employee_data in request.employees_data:
         try:
-            logger.info(f"--- Обработка сотрудника ID={emp_id} ---")
-            # Получаем сотрудника
-            employee = db.query(models.Employee).filter(
-                models.Employee.id == emp_id
-            ).first()
+            employee_name = employee_data.get('employee_name', 'Unknown')
+            telegram_id = employee_data.get('telegram_id')
             
-            if not employee:
-                logger.warning(f"Сотрудник {emp_id} не найден в БД")
-                errors.append(f"Сотрудник {emp_id}: не найден")
-                failed_count += 1
-                continue
-                
-            if not employee.telegram_id:
-                logger.warning(f"У сотрудника {employee.full_name} нет Telegram ID")
-                errors.append(f"Сотрудник {employee.full_name}: нет Telegram ID")
+            if not telegram_id:
+                logger.warning(f"У сотрудника {employee_name} нет Telegram ID")
+                errors.append(f"Сотрудник {employee_name}: нет Telegram ID")
                 failed_count += 1
                 continue
             
-            # Получаем данные сотрудника
-            logger.info(f"Получение данных для {employee.full_name}")
-            from telegram_message_helper import get_employee_telegram_data
-            from simple_template_renderer import render_simple_template
+            logger.info(f"--- Обработка сотрудника {employee_name} ---")
             
-            employee_data = get_employee_telegram_data(db, emp_id, year, month)
-            
-            if not employee_data:
-                logger.warning(f"Нет данных для {employee.full_name}")
-                errors.append(f"Сотрудник {employee.full_name}: нет данных")
-                failed_count += 1
-                continue
-            
-            # Рендерим шаблон
-            logger.info(f"Рендеринг шаблона для {employee.full_name}")
+            # Рендерим шаблон с готовыми данными
+            logger.info(f"Рендеринг шаблона для {employee_name}")
             message = render_simple_template(template.template_text, employee_data)
             logger.info(f"Сообщение отрендерено, длина: {len(message)} символов")
             
             # Отправляем в Telegram
-            logger.info(f"Отправка в Telegram ID: {employee.telegram_id}")
+            logger.info(f"Отправка в Telegram ID: {telegram_id}")
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"https://api.telegram.org/bot{company.telegram_bot_token}/sendMessage",
                     json={
-                        "chat_id": employee.telegram_id,
+                        "chat_id": telegram_id,
                         "text": message,
                         "parse_mode": "HTML"
                     },
@@ -2776,19 +2741,19 @@ async def send_telegram_reports(
                 )
                 
                 if response.status_code == 200:
-                    logger.info(f"✓ Успешно отправлено {employee.full_name}")
+                    logger.info(f"✓ Успешно отправлено {employee_name}")
                     sent_count += 1
                 else:
-                    logger.error(f"✗ Ошибка отправки {employee.full_name}: {response.status_code} - {response.text}")
-                    errors.append(f"Сотрудник {employee.full_name}: ошибка отправки - {response.text}")
+                    logger.error(f"✗ Ошибка отправки {employee_name}: {response.status_code} - {response.text}")
+                    errors.append(f"Сотрудник {employee_name}: ошибка отправки - {response.text}")
                     failed_count += 1
                     
         except Exception as e:
             import traceback
             error_trace = traceback.format_exc()
-            logger.error(f"✗ ИСКЛЮЧЕНИЕ при обработке сотрудника {emp_id}:")
+            logger.error(f"✗ ИСКЛЮЧЕНИЕ при обработке сотрудника {employee_name}:")
             logger.error(error_trace)
-            errors.append(f"Сотрудник {emp_id}: {str(e)}")
+            errors.append(f"Сотрудник {employee_name}: {str(e)}")
             failed_count += 1
     
     result = {
