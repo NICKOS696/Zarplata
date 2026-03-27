@@ -79,7 +79,7 @@ def render_simple_template(template_text: str, data: dict) -> str:
         
         result = re.sub(brands_loop_pattern, ''.join(brands_output), result, flags=re.DOTALL)
     
-    # Обрабатываем цикл по KPI
+    # Обрабатываем цикл по KPI с планом
     kpi_loop_pattern = r'\{kpi_loop\}(.*?)\{/kpi_loop\}'
     kpi_match = re.search(kpi_loop_pattern, result, re.DOTALL)
     if kpi_match:
@@ -87,16 +87,36 @@ def render_simple_template(template_text: str, data: dict) -> str:
         kpi_output = []
         
         for kpi in data.get('kpis', []):
-            kpi_text = loop_template
-            kpi_text = kpi_text.replace('{kpi_name}', str(kpi.get('name', '')))
-            kpi_text = kpi_text.replace('{kpi_plan}', format_number(kpi.get('plan', 0)))
-            kpi_text = kpi_text.replace('{kpi_fact}', format_number(kpi.get('fact', 0)))
-            kpi_text = kpi_text.replace('{kpi_percent}', f"{kpi.get('percent', 0):.0f}")
-            kpi_text = kpi_text.replace('{kpi_accrual}', format_number(kpi.get('accrual', 0)))
-            kpi_text = kpi_text.replace('{kpi_progress_bar}', render_progress_bar(kpi.get('percent', 0)))
-            kpi_output.append(kpi_text)
+            # Только KPI с планом > 0
+            if kpi.get('plan', 0) > 0:
+                kpi_text = loop_template
+                kpi_text = kpi_text.replace('{kpi_name}', str(kpi.get('name', '')))
+                kpi_text = kpi_text.replace('{kpi_plan}', format_number(kpi.get('plan', 0)))
+                kpi_text = kpi_text.replace('{kpi_fact}', format_number(kpi.get('fact', 0)))
+                kpi_text = kpi_text.replace('{kpi_percent}', f"{kpi.get('percent', 0):.0f}")
+                kpi_text = kpi_text.replace('{kpi_accrual}', format_number(kpi.get('accrual', 0)))
+                kpi_text = kpi_text.replace('{kpi_progress_bar}', render_progress_bar(kpi.get('percent', 0)))
+                kpi_output.append(kpi_text)
         
         result = re.sub(kpi_loop_pattern, ''.join(kpi_output), result, flags=re.DOTALL)
+    
+    # Обрабатываем цикл по KPI без плана
+    kpi_no_plan_loop_pattern = r'\{kpi_no_plan_loop\}(.*?)\{/kpi_no_plan_loop\}'
+    kpi_no_plan_match = re.search(kpi_no_plan_loop_pattern, result, re.DOTALL)
+    if kpi_no_plan_match:
+        loop_template = kpi_no_plan_match.group(1)
+        kpi_output = []
+        
+        for kpi in data.get('kpis', []):
+            # Только KPI без плана (plan = 0)
+            if kpi.get('plan', 0) == 0:
+                kpi_text = loop_template
+                kpi_text = kpi_text.replace('{kpi_name}', str(kpi.get('name', '')))
+                kpi_text = kpi_text.replace('{kpi_fact}', format_number(kpi.get('fact', 0)))
+                kpi_text = kpi_text.replace('{kpi_accrual}', format_number(kpi.get('accrual', 0)))
+                kpi_output.append(kpi_text)
+        
+        result = re.sub(kpi_no_plan_loop_pattern, ''.join(kpi_output), result, flags=re.DOTALL)
     
     # Простые текстовые переменные
     result = result.replace('{employee_name}', str(data.get('employee_name', '')))
