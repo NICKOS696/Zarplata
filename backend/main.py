@@ -2744,10 +2744,23 @@ async def send_telegram_reports(
                 failed_count += 1
                 continue
             
-            # ВРЕМЕННО: отправляем простое тестовое сообщение
-            logger.info(f"Отправка тестового сообщения для {employee.full_name}")
-            message = f"Тестовое сообщение для {employee.full_name}\n\nШаблон: {template.name}\nПериод: {month}/{year}"
-            logger.info(f"Сообщение подготовлено, длина: {len(message)} символов")
+            # Получаем данные сотрудника
+            logger.info(f"Получение данных для {employee.full_name}")
+            from telegram_message_helper import get_employee_telegram_data
+            from simple_template_renderer import render_simple_template
+            
+            employee_data = get_employee_telegram_data(db, emp_id, year, month)
+            
+            if not employee_data:
+                logger.warning(f"Нет данных для {employee.full_name}")
+                errors.append(f"Сотрудник {employee.full_name}: нет данных")
+                failed_count += 1
+                continue
+            
+            # Рендерим шаблон
+            logger.info(f"Рендеринг шаблона для {employee.full_name}")
+            message = render_simple_template(template.template_text, employee_data)
+            logger.info(f"Сообщение отрендерено, длина: {len(message)} символов")
             
             # Отправляем в Telegram
             logger.info(f"Отправка в Telegram ID: {employee.telegram_id}")
