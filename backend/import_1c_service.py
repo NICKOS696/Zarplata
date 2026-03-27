@@ -37,29 +37,21 @@ def check_missing_entities(db: Session, parsed_data: Dict) -> Dict:
     all_employees = crud.get_employees(db)
     employees_by_name_1c = {emp.name_1c: emp for emp in all_employees if emp.name_1c}
     
+    # Создаем дополнительный индекс для поиска по частичному совпадению
+    # Извлекаем имя без территории для каждого сотрудника
+    employees_by_short_name = {}
+    for emp in all_employees:
+        if emp.name_1c:
+            # Убираем территорию в квадратных скобках
+            short_name = emp.name_1c.split('[')[0].strip()
+            if short_name not in employees_by_short_name:
+                employees_by_short_name[short_name] = emp
+    
     print(f"=== ОТЛАДКА СОПОСТАВЛЕНИЯ СОТРУДНИКОВ ===")
     print(f"Всего сотрудников в базе: {len(all_employees)}")
     print(f"Сотрудников с name_1c: {len(employees_by_name_1c)}")
+    print(f"Сотрудников по короткому имени: {len(employees_by_short_name)}")
     print(f"Уникальных сотрудников в файле: {len(parsed_data['missing_employees'])}")
-    
-    # Выводим первые 5 name_1c из базы для проверки
-    print(f"Примеры name_1c в базе:")
-    for i, (name, emp) in enumerate(list(employees_by_name_1c.items())[:5]):
-        print(f"  {i+1}. '{name}' (ID: {emp.id})")
-    
-    # Выводим первые 5 name_1c из файла для проверки
-    print(f"Примеры name_1c в файле:")
-    for i, name in enumerate(list(parsed_data['missing_employees'])[:5]):
-        print(f"  {i+1}. '{name}'")
-    
-    # Специальная проверка для Юнусовой
-    test_name = 'Юнусова Гавхар Ахмоджоновна [УЧ ТЕПА]'
-    print(f"\n🔍 Проверка конкретного сотрудника: '{test_name}'")
-    print(f"   Есть в базе: {test_name in employees_by_name_1c}")
-    print(f"   Есть в файле: {test_name in parsed_data['missing_employees']}")
-    if test_name in employees_by_name_1c:
-        emp = employees_by_name_1c[test_name]
-        print(f"   ID в базе: {emp.id}, ФИО: {emp.full_name}")
     
     # Создаем словарь для быстрого поиска telegram_id
     employee_telegram_ids = {}
@@ -68,63 +60,84 @@ def check_missing_entities(db: Session, parsed_data: Dict) -> Dict:
             employee_telegram_ids[record['employee_name_1c']] = record['telegram_id']
     
     for employee_name_1c in parsed_data['missing_employees']:
+        # Сначала пробуем точное совпадение
         if employee_name_1c in employees_by_name_1c:
             result['existing_employees'][employee_name_1c] = employees_by_name_1c[employee_name_1c]
         else:
-            # Извлекаем ФИО и территорию из первой записи этого сотрудника
-            employee_record = next((r for r in parsed_data['data'] if r['employee_name_1c'] == employee_name_1c), None)
-            if employee_record:
-                # Извлекаем короткое ФИО (убираем отчество и территорию)
-                full_name_parts = employee_record['employee_name'].split()
-                short_name = ' '.join(full_name_parts[:2]) if len(full_name_parts) >= 2 else employee_record['employee_name']
-                
-                # Ищем ID супервайзера и менеджера по их name_1c
-                supervisor_id = None
-                manager_id = None
-                
-                if employee_record.get('supervisor'):
-                    supervisor = next((e for e in all_employees if e.name_1c == employee_record['supervisor']), None)
-                    supervisor_id = supervisor.id if supervisor else None
-                
-                if employee_record.get('manager'):
-                    manager = next((e for e in all_employees if e.name_1c == employee_record['manager']), None)
-                    manager_id = manager.id if manager else None
-                
-                # Ищем ID территории
-                territory_id = None
-                if employee_record['territory']:
-                    all_territories = crud.get_territories(db)
-                    territory = next((t for t in all_territories if t.name == employee_record['territory']), None)
-                    territory_id = territory.id if territory else None
-                
-                result['missing_employees'].append({
-                    'name_1c': employee_name_1c,
-                    'full_name': short_name,
-                    'full_name_1c': employee_record['employee_name'],
-                    'territory': employee_record['territory'],
-                    'territory_id': territory_id,
-                    'telegram_id': employee_record['telegram_id'],
-                    'supervisor': employee_record.get('supervisor'),
-                    'supervisor_id': supervisor_id,
-                    'manager': employee_record.get('manager'),
-                    'manager_id': manager_id
-                })
+            # Если не нашли точное совпадение, пробуем по короткому имени
+            short_name = employee_name_1c.split('[')[0].strip()
+            if short_name in employees_by_short_name:
+                result['existing_employees'][employee_name_1c] = employees_by_short_name[short_name]
+                print(f"✓ Найден по короткому имени: '{employee_name_1c}' -> '{employees_by_short_name[short_name].name_1c}'")
             else:
-                # Fallback на старый метод
-                from import_1c_parser import extract_employee_info
-                info = extract_employee_info(employee_name_1c)
-                result['missing_employees'].append({
-                    'name_1c': employee_name_1c,
-                    'full_name': info['full_name'],
-                    'full_name_1c': info['full_name'],
-                    'territory': info['territory'],
-                    'territory_id': None,
-                    'telegram_id': None,
-                    'supervisor': None,
-                    'supervisor_id': None,
-                    'manager': None,
-                    'manager_id': None
-                })
+                # Извлекаем ФИО и территорию из первой записи этого сотрудника
+                employee_record = next((r for r in parsed_data['data'] if r['employee_name_1c'] == employee_name_1c), None)
+                if employee_record:
+                    # Извлекаем короткое ФИО (убираем отчество и территорию)
+                    full_name_parts = employee_record['employee_name'].split()
+                    short_name = ' '.join(full_name_parts[:2]) if len(full_name_parts) >= 2 else employee_record['employee_name']
+                    
+                    # Ищем ID супервайзера и менеджера по их name_1c или full_name
+                    supervisor_id = None
+                    manager_id = None
+                    
+                    if employee_record.get('supervisor'):
+                        # Сначала ищем по name_1c
+                        supervisor = next((e for e in all_employees if e.name_1c == employee_record['supervisor']), None)
+                        # Если не нашли, ищем по вхождению в name_1c или full_name
+                        if not supervisor:
+                            supervisor_name = employee_record['supervisor'].split('[')[0].strip()
+                            supervisor = next((e for e in all_employees if 
+                                             (e.name_1c and supervisor_name in e.name_1c) or 
+                                             (e.full_name and supervisor_name in e.full_name)), None)
+                        supervisor_id = supervisor.id if supervisor else None
+                    
+                    if employee_record.get('manager'):
+                        # Сначала ищем по name_1c
+                        manager = next((e for e in all_employees if e.name_1c == employee_record['manager']), None)
+                        # Если не нашли, ищем по вхождению в name_1c или full_name
+                        if not manager:
+                            manager_name = employee_record['manager'].split('[')[0].strip()
+                            manager = next((e for e in all_employees if 
+                                          (e.name_1c and manager_name in e.name_1c) or 
+                                          (e.full_name and manager_name in e.full_name)), None)
+                        manager_id = manager.id if manager else None
+                    
+                    # Ищем ID территории
+                    territory_id = None
+                    if employee_record['territory']:
+                        all_territories = crud.get_territories(db)
+                        territory = next((t for t in all_territories if t.name == employee_record['territory']), None)
+                        territory_id = territory.id if territory else None
+                    
+                    result['missing_employees'].append({
+                        'name_1c': employee_name_1c,
+                        'full_name': short_name,
+                        'full_name_1c': employee_record['employee_name'],
+                        'territory': employee_record['territory'],
+                        'territory_id': territory_id,
+                        'telegram_id': employee_record['telegram_id'],
+                        'supervisor': employee_record.get('supervisor'),
+                        'supervisor_id': supervisor_id,
+                        'manager': employee_record.get('manager'),
+                        'manager_id': manager_id
+                    })
+                else:
+                    # Fallback на старый метод
+                    from import_1c_parser import extract_employee_info
+                    info = extract_employee_info(employee_name_1c)
+                    result['missing_employees'].append({
+                        'name_1c': employee_name_1c,
+                        'full_name': info['full_name'],
+                        'full_name_1c': info['full_name'],
+                        'territory': info['territory'],
+                        'territory_id': None,
+                        'telegram_id': None,
+                        'supervisor': None,
+                        'supervisor_id': None,
+                        'manager': None,
+                        'manager_id': None
+                    })
     
     # Проверяем бренды и KPI
     all_brands = crud.get_brands(db)
