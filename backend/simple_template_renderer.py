@@ -101,6 +101,8 @@ def render_simple_template(template_text: str, data: dict) -> str:
     # Простые текстовые переменные
     result = result.replace('{employee_name}', str(data.get('employee_name', '')))
     result = result.replace('{territory}', str(data.get('territory', '')))
+    result = result.replace('{month}', str(data.get('month', '')))
+    result = result.replace('{year}', str(data.get('year', '')))
     
     # Числовые переменные с форматированием
     result = result.replace('{fixed_salary}', format_number(data.get('fixed_salary', 0)))

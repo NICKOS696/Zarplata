@@ -855,42 +855,66 @@ function SummaryReport() {
       setSendingTelegram(true);
       
       // Подготавливаем данные для отправки
-      const employeesData = employeesWithTelegram.map(data => ({
-        employee_id: data.employee.id,
-        employee_name: data.employee.full_name,
-        telegram_id: data.employee.telegram_id,
-        territory: data.employee.territory?.name || '',
-        fixed_salary: data.fixedSalary,
-        travel_allowance: data.travelAllowance,
-        bonus: data.bonus,
-        days_worked: data.daysWorked,
-        working_days: workCalendar?.working_days || 0,
-        brands: data.brandData.map(b => ({
-          name: b.brand.name,
-          plan: b.plan,
-          fact: b.fact,
-          percent: b.percent,
-          accrual: b.accrual
-        })),
-        kpis: data.kpiData.map(k => ({
-          name: k.kpi.name,
-          plan: k.plan,
-          fact: k.fact,
-          percent: k.percent,
-          accrual: k.accrual
-        })),
-        total_plan: data.totalPlan,
-        total_fact: data.totalFact,
-        total_percent: data.totalPercent,
-        total_accrual: data.totalAccrual,
-        total_salary: data.fixedSalary + data.travelAllowance + data.bonus + data.totalAccrual,
-        order_count: data.orderCount || 0,
-        reserved_orders: data.totalReserved,
-        forecast_result: data.forecastResult || 0,
-        forecast_percent: data.forecastPercent || 0,
-        plan_per_day: data.planPerDay || 0,
-        days_remaining: data.daysRemaining || 0
-      }));
+      const employeesData = employeesWithTelegram.map(data => {
+        // Рассчитываем прогноз
+        const workingDays = workCalendar?.working_days || 22;
+        const daysWorked = data.daysWorked || 0;
+        const daysRemaining = Math.max(0, workingDays - daysWorked);
+        
+        let forecastResult = 0;
+        let forecastPercent = 0;
+        let planPerDay = 0;
+        
+        if (daysWorked > 0 && data.totalPlan > 0) {
+          const dailyAverage = data.totalFact / daysWorked;
+          forecastResult = Math.round(dailyAverage * workingDays);
+          forecastPercent = Math.round((forecastResult / data.totalPlan) * 100);
+        }
+        
+        if (daysRemaining > 0 && data.totalPlan > 0) {
+          const remainingPlan = Math.max(0, data.totalPlan - data.totalFact);
+          planPerDay = Math.round(remainingPlan / daysRemaining);
+        }
+        
+        return {
+          employee_id: data.employee.id,
+          employee_name: data.employee.full_name,
+          telegram_id: data.employee.telegram_id,
+          territory: data.employee.territory?.name || '',
+          month: selectedMonth,
+          year: selectedYear,
+          fixed_salary: data.fixedSalary,
+          travel_allowance: data.travelAllowance,
+          bonus: data.bonus,
+          days_worked: daysWorked,
+          working_days: workingDays,
+          brands: data.brandData.map(b => ({
+            name: b.brand.name,
+            plan: b.plan,
+            fact: b.fact,
+            percent: b.percent,
+            accrual: b.accrual
+          })),
+          kpis: data.kpiData.map(k => ({
+            name: k.kpi.name,
+            plan: k.plan,
+            fact: k.fact,
+            percent: k.percent,
+            accrual: k.accrual
+          })),
+          total_plan: data.totalPlan,
+          total_fact: data.totalFact,
+          total_percent: data.totalPercent,
+          total_accrual: data.totalAccrual,
+          total_salary: data.fixedSalary + data.travelAllowance + data.bonus + data.totalAccrual,
+          order_count: data.orderCount || 0,
+          reserved_orders: data.totalReserved,
+          forecast_result: forecastResult,
+          forecast_percent: forecastPercent,
+          plan_per_day: planPerDay,
+          days_remaining: daysRemaining
+        };
+      });
       
       const response = await telegramTemplatesAPI.sendReports(
         selectedTemplate,
