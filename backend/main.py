@@ -2965,6 +2965,14 @@ async def send_telegram_reports(
     current_user: models.User = Depends(get_current_user)
 ):
     """Отправляет отчеты сотрудникам в Telegram"""
+    import sys
+    sys.stderr.write(f"\n\n{'='*80}\n")
+    sys.stderr.write(f"TELEGRAM SEND REPORTS CALLED\n")
+    sys.stderr.write(f"template_id={template_id}, year={year}, month={month}\n")
+    sys.stderr.write(f"employee_ids={employee_ids}\n")
+    sys.stderr.write(f"{'='*80}\n\n")
+    sys.stderr.flush()
+    
     from telegram_template_renderer import render_template, prepare_employee_data_for_template
     from summary_calculator import calculate_summary_report
     import httpx
@@ -3069,12 +3077,14 @@ async def send_telegram_reports(
             errors.append(f"Сотрудник {emp_id}: {str(e)}")
             failed_count += 1
     
-    return {
+    result = {
         "success": True,
         "sent_count": sent_count,
         "failed_count": failed_count,
         "errors": errors if errors else None
     }
+    logger.info(f"=== РЕЗУЛЬТАТ ОТПРАВКИ: {result} ===")
+    return result
 
 
 # ==================== HEALTH CHECK ====================
