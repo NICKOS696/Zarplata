@@ -4,7 +4,12 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date, datetime
 import os
+import logging
 from dotenv import load_dotenv
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 import models
 import schemas
@@ -2982,19 +2987,19 @@ async def send_telegram_reports(
     
     # Получаем данные сводной таблицы
     try:
-        print(f"=== Получение данных сводной таблицы для компании {template.company_id}, {year}-{month} ===")
+        logger.info(f"=== Получение данных сводной таблицы для компании {template.company_id}, {year}-{month} ===")
         summary_data = calculate_summary_report(db, template.company_id, year, month)
-        print(f"Получено данных по {len(summary_data.get('data', []))} сотрудникам")
+        logger.info(f"Получено данных по {len(summary_data.get('data', []))} сотрудникам")
     except Exception as e:
         import traceback
-        print(f"ОШИБКА получения данных: {traceback.format_exc()}")
+        logger.error(f"ОШИБКА получения данных: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Ошибка получения данных: {str(e)}")
     
     # Если не указаны конкретные сотрудники, отправляем всем
     if not employee_ids:
         employee_ids = [item['employee']['id'] for item in summary_data.get('data', [])]
     
-    print(f"=== Отправка сообщений {len(employee_ids)} сотрудникам ===")
+    logger.info(f"=== Отправка сообщений {len(employee_ids)} сотрудникам ===")
     
     sent_count = 0
     failed_count = 0
@@ -3002,41 +3007,41 @@ async def send_telegram_reports(
     
     for emp_id in employee_ids:
         try:
-            print(f"--- Обработка сотрудника ID={emp_id} ---")
+            logger.info(f"--- Обработка сотрудника ID={emp_id} ---")
             # Получаем сотрудника
             employee = db.query(models.Employee).filter(
                 models.Employee.id == emp_id
             ).first()
             
             if not employee:
-                print(f"Сотрудник {emp_id} не найден в БД")
+                logger.warning(f"Сотрудник {emp_id} не найден в БД")
                 errors.append(f"Сотрудник {emp_id}: не найден")
                 failed_count += 1
                 continue
                 
             if not employee.telegram_id:
-                print(f"У сотрудника {employee.full_name} нет Telegram ID")
+                logger.warning(f"У сотрудника {employee.full_name} нет Telegram ID")
                 errors.append(f"Сотрудник {employee.full_name}: нет Telegram ID")
                 failed_count += 1
                 continue
             
             # Подготавливаем данные
-            print(f"Подготовка данных для {employee.full_name}")
+            logger.info(f"Подготовка данных для {employee.full_name}")
             employee_data = prepare_employee_data_for_template(summary_data, emp_id)
             
             if not employee_data:
-                print(f"Нет данных в сводной для {employee.full_name}")
+                logger.warning(f"Нет данных в сводной для {employee.full_name}")
                 errors.append(f"Сотрудник {employee.full_name}: нет данных в сводной")
                 failed_count += 1
                 continue
             
             # Рендерим сообщение
-            print(f"Рендеринг шаблона для {employee.full_name}")
+            logger.info(f"Рендеринг шаблона для {employee.full_name}")
             message = render_template(template.template_text, employee_data)
-            print(f"Сообщение отрендерено, длина: {len(message)} символов")
+            logger.info(f"Сообщение отрендерено, длина: {len(message)} символов")
             
             # Отправляем в Telegram
-            print(f"Отправка в Telegram ID: {employee.telegram_id}")
+            logger.info(f"Отправка в Telegram ID: {employee.telegram_id}")
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"https://api.telegram.org/bot{company.telegram_bot_token}/sendMessage",
@@ -3049,18 +3054,18 @@ async def send_telegram_reports(
                 )
                 
                 if response.status_code == 200:
-                    print(f"✓ Успешно отправлено {employee.full_name}")
+                    logger.info(f"✓ Успешно отправлено {employee.full_name}")
                     sent_count += 1
                 else:
-                    print(f"✗ Ошибка отправки {employee.full_name}: {response.status_code} - {response.text}")
+                    logger.error(f"✗ Ошибка отправки {employee.full_name}: {response.status_code} - {response.text}")
                     errors.append(f"Сотрудник {employee.full_name}: ошибка отправки - {response.text}")
                     failed_count += 1
                     
         except Exception as e:
             import traceback
             error_trace = traceback.format_exc()
-            print(f"✗ ИСКЛЮЧЕНИЕ при обработке сотрудника {emp_id}:")
-            print(error_trace)
+            logger.error(f"✗ ИСКЛЮЧЕНИЕ при обработке сотрудника {emp_id}:")
+            logger.error(error_trace)
             errors.append(f"Сотрудник {emp_id}: {str(e)}")
             failed_count += 1
     
