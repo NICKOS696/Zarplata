@@ -74,13 +74,40 @@ def check_missing_entities(db: Session, parsed_data: Dict) -> Dict:
             # Извлекаем ФИО и территорию из первой записи этого сотрудника
             employee_record = next((r for r in parsed_data['data'] if r['employee_name_1c'] == employee_name_1c), None)
             if employee_record:
+                # Извлекаем короткое ФИО (убираем отчество и территорию)
+                full_name_parts = employee_record['employee_name'].split()
+                short_name = ' '.join(full_name_parts[:2]) if len(full_name_parts) >= 2 else employee_record['employee_name']
+                
+                # Ищем ID супервайзера и менеджера по их name_1c
+                supervisor_id = None
+                manager_id = None
+                
+                if employee_record.get('supervisor'):
+                    supervisor = next((e for e in all_employees if e.name_1c == employee_record['supervisor']), None)
+                    supervisor_id = supervisor.id if supervisor else None
+                
+                if employee_record.get('manager'):
+                    manager = next((e for e in all_employees if e.name_1c == employee_record['manager']), None)
+                    manager_id = manager.id if manager else None
+                
+                # Ищем ID территории
+                territory_id = None
+                if employee_record['territory']:
+                    all_territories = crud.get_territories(db)
+                    territory = next((t for t in all_territories if t.name == employee_record['territory']), None)
+                    territory_id = territory.id if territory else None
+                
                 result['missing_employees'].append({
                     'name_1c': employee_name_1c,
-                    'full_name': employee_record['employee_name'],
+                    'full_name': short_name,
+                    'full_name_1c': employee_record['employee_name'],
                     'territory': employee_record['territory'],
+                    'territory_id': territory_id,
                     'telegram_id': employee_record['telegram_id'],
                     'supervisor': employee_record.get('supervisor'),
-                    'manager': employee_record.get('manager')
+                    'supervisor_id': supervisor_id,
+                    'manager': employee_record.get('manager'),
+                    'manager_id': manager_id
                 })
             else:
                 # Fallback на старый метод
@@ -89,10 +116,14 @@ def check_missing_entities(db: Session, parsed_data: Dict) -> Dict:
                 result['missing_employees'].append({
                     'name_1c': employee_name_1c,
                     'full_name': info['full_name'],
+                    'full_name_1c': info['full_name'],
                     'territory': info['territory'],
+                    'territory_id': None,
                     'telegram_id': None,
                     'supervisor': None,
-                    'manager': None
+                    'supervisor_id': None,
+                    'manager': None,
+                    'manager_id': None
                 })
     
     # Проверяем бренды и KPI

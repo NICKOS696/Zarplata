@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { importAPI } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { importAPI, salaryRulesAPI, employeesAPI, territoriesAPI } from '../services/api';
 import { Upload, FileText, AlertCircle, CheckCircle, Users, Package } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -17,6 +17,29 @@ const DataImport = () => {
   const [dragActive, setDragActive] = useState(false);
   const [showMissingEmployees, setShowMissingEmployees] = useState(false);
   const [creatingEmployees, setCreatingEmployees] = useState(false);
+  const [salaryRules, setSalaryRules] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [territories, setTerritories] = useState([]);
+  const [employeeSalaryRules, setEmployeeSalaryRules] = useState({});
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const [rulesRes, employeesRes, territoriesRes] = await Promise.all([
+        salaryRulesAPI.getAll(),
+        employeesAPI.getAll(),
+        territoriesAPI.getAll()
+      ]);
+      setSalaryRules(rulesRes.data);
+      setEmployees(employeesRes.data);
+      setTerritories(territoriesRes.data);
+    } catch (error) {
+      console.error('Ошибка загрузки данных:', error);
+    }
+  };
 
   const importTypes = [
     { value: 'bulk', label: '📦 Множественный импорт (все файлы сразу)', icon: Package },
@@ -126,24 +149,28 @@ const DataImport = () => {
       for (let idx = 0; idx < parseResult.missing_employees.length; idx++) {
         const emp = parseResult.missing_employees[idx];
         
-        // Получаем значения из полей ввода
-        const telegramInput = document.getElementById(`telegram-${idx}`);
-        const positionSelect = document.getElementById(`position-${idx}`);
+        // Получаем значение правила зарплаты
+        const salaryRuleSelect = document.getElementById(`salary-rule-${idx}`);
+        const salaryRuleId = salaryRuleSelect?.value ? parseInt(salaryRuleSelect.value) : null;
         
-        await importAPI.createEmployee({
+        await employeesAPI.create({
           full_name: emp.full_name,
           name_1c: emp.name_1c,
-          territory: emp.territory,
-          position: positionSelect?.value || 'agent',
-          telegram_id: telegramInput?.value || null,
-          supervisor: emp.supervisor,
-          manager: emp.manager,
-          company_id: currentCompanyId || 1
+          territory_id: emp.territory_id,
+          position: 'agent',
+          telegram_id: emp.telegram_id || null,
+          supervisor_id: emp.supervisor_id,
+          manager_id: emp.manager_id,
+          company_id: currentCompanyId,
+          salary_rule_id: salaryRuleId,
+          is_active: true
         });
       }
-      // Перепарсим файл после создания всех сотрудников
+      // Перезагружаем данные и перепарсим файл
+      await loadData();
       await handleParse();
       setShowMissingEmployees(false);
+      alert(`Успешно создано ${parseResult.missing_employees.length} сотрудников!`);
     } catch (error) {
       console.error('Ошибка создания сотрудников:', error);
       alert('Ошибка при создании сотрудников: ' + (error.response?.data?.detail || error.message));
@@ -480,39 +507,65 @@ const DataImport = () => {
                     
                     {showMissingEmployees && (
                       <div className="mt-3">
-                        <div className="max-h-60 overflow-y-auto space-y-3">
+                        <div className="max-h-96 overflow-y-auto space-y-4">
                           {parseResult.missing_employees.map((emp, idx) => (
-                            <div key={idx} className="p-3 bg-white rounded border">
-                              <p className="font-medium text-sm">{emp.full_name}</p>
-                              <p className="text-gray-600 text-xs mb-2">📍 {emp.territory}</p>
-                              <div className="grid grid-cols-2 gap-2">
-                                <input
-                                  type="text"
-                                  placeholder="Telegram ID"
-                                  defaultValue={emp.telegram_id || ''}
-                                  className="text-xs px-2 py-1 border rounded"
-                                  id={`telegram-${idx}`}
-                                />
-                                <select
-                                  className="text-xs px-2 py-1 border rounded"
-                                  id={`position-${idx}`}
-                                  defaultValue="agent"
-                                >
-                                  <option value="agent">Агент</option>
-                                  <option value="supervisor">Супервайзер</option>
-                                  <option value="manager">Менеджер</option>
-                                </select>
+                            <div key={idx} className="p-4 bg-white rounded border border-gray-300 shadow-sm">
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                  <label className="text-xs text-gray-600 font-medium">ФИО</label>
+                                  <p className="font-medium">{emp.full_name}</p>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-600 font-medium">Название в 1С</label>
+                                  <p className="text-xs text-gray-700">{emp.name_1c}</p>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-600 font-medium">Территория</label>
+                                  <p className="text-xs">{emp.territory || 'Не указана'}</p>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-600 font-medium">Telegram ID</label>
+                                  <p className="text-xs">{emp.telegram_id || 'Не указан'}</p>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-600 font-medium">Супервайзер</label>
+                                  <p className="text-xs">{emp.supervisor ? employees.find(e => e.id === emp.supervisor_id)?.full_name || emp.supervisor : 'Не указан'}</p>
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-600 font-medium">Менеджер</label>
+                                  <p className="text-xs">{emp.manager ? employees.find(e => e.id === emp.manager_id)?.full_name || emp.manager : 'Не указан'}</p>
+                                </div>
+                                <div className="col-span-2">
+                                  <label className="text-xs text-gray-600 font-medium block mb-1">Правило зарплаты *</label>
+                                  <select
+                                    className="w-full text-sm px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                    id={`salary-rule-${idx}`}
+                                    defaultValue=""
+                                  >
+                                    <option value="">Выберите правило зарплаты</option>
+                                    {salaryRules.map(rule => (
+                                      <option key={rule.id} value={rule.id}>
+                                        {rule.name} ({rule.company?.name})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
                               </div>
                             </div>
                           ))}
                         </div>
-                        <button
-                          onClick={handleCreateAllEmployees}
-                          disabled={creatingEmployees}
-                          className="mt-3 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400"
-                        >
-                          {creatingEmployees ? 'Создание...' : 'Создать всех сотрудников'}
-                        </button>
+                        <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
+                          <p className="text-sm text-blue-800 mb-2">
+                            ⚠️ Выберите правило зарплаты для каждого сотрудника перед созданием
+                          </p>
+                          <button
+                            onClick={handleCreateAllEmployees}
+                            disabled={creatingEmployees}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 font-medium"
+                          >
+                            {creatingEmployees ? 'Создание...' : `Создать всех сотрудников (${parseResult.missing_employees.length})`}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
